@@ -1,0 +1,8 @@
+# Browser profile dan hasil sementara visual review
+mobile/review/edge-profile/
+mobile/review/edge-profile-welcome-cold/
+
+# File sementara Flutter/Dart
+mobile/.appdata/
+mobile/.dart_tool/
+mobile/build/

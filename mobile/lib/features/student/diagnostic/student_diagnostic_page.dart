@@ -1,0 +1,310 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_tokens.dart';
+import '../../teacher/teacher_demo_store.dart';
+import '../student_demo_store.dart';
+import '../student_widgets.dart';
+
+class _DiagnosticItem {
+  const _DiagnosticItem(this.aspect, this.prompt, this.choices, this.answer);
+  final String aspect;
+  final String prompt;
+  final List<String> choices;
+  final int answer;
+}
+
+class StudentDiagnosticPage extends StatefulWidget {
+  const StudentDiagnosticPage({super.key});
+
+  @override
+  State<StudentDiagnosticPage> createState() => _StudentDiagnosticPageState();
+}
+
+class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
+  static const _items = [
+    _DiagnosticItem('huruf', 'Huruf apa yang berbunyi “b”?', [
+      'b',
+      'd',
+      'm',
+    ], 0),
+    _DiagnosticItem('huruf', 'Kata “mata” dimulai dengan huruf…', [
+      's',
+      'm',
+      't',
+    ], 1),
+    _DiagnosticItem('suku_kata', 'Pilih suku kata “ba”.', [
+      'da',
+      'ba',
+      'ma',
+    ], 1),
+    _DiagnosticItem('suku_kata', 'Pilih suku kata “bi”.', [
+      'bu',
+      'be',
+      'bi',
+    ], 2),
+    _DiagnosticItem('kata', 'Pilih kata “bola”.', ['buku', 'bola', 'bila'], 1),
+    _DiagnosticItem('kata', 'Pilih kata “meja”.', ['meja', 'mata', 'madu'], 0),
+    _DiagnosticItem('kalimat', 'Kalimat mana yang cocok: Ibu memasak nasi.', [
+      'Ibu makan nasi.',
+      'Ibu memasak nasi.',
+      'Nasi melihat Ibu.',
+    ], 1),
+    _DiagnosticItem('kalimat', 'Kalimat mana yang cocok: Budi bermain bola.', [
+      'Bola bermain Budi.',
+      'Budi bermain bola.',
+      'Budi minum bola.',
+    ], 1),
+  ];
+
+  final _answers = <int?>[];
+  final _scrollController = ScrollController();
+  int _index = 0;
+  bool _complete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _answers.addAll(List<int?>.filled(_items.length, null));
+    _complete = StudentDemoStore.instance.diagnosticCompleted;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_complete) return _result(context);
+
+    final student = StudentDemoStore.instance.student;
+    final hasActiveTest = TeacherDemoStore.instance.diagnostics.any(
+      (test) => test.classId == student.classId && test.status == 'aktif',
+    );
+    if (!hasActiveTest) return _empty(context);
+
+    return _question(context);
+  }
+
+  Widget _empty(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppTokens.space16),
+    children: [
+      const StudentPageHeading(
+        title: 'Tes Diagnostik',
+        subtitle: 'Belajar membaca langkah demi langkah.',
+      ),
+      const StudentEmptyState(
+        message: 'Belum ada tes. Tunggu Bapak/Ibu Guru ya!',
+      ),
+      const SizedBox(height: AppTokens.space16),
+      StudentAction(
+        label: 'Kembali ke beranda',
+        icon: Icons.home_rounded,
+        onPressed: () => Navigator.pushReplacementNamed(context, '/siswa'),
+      ),
+    ],
+  );
+
+  Widget _question(BuildContext context) {
+    final item = _items[_index];
+    return ListView(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        StudentPageHeading(
+          title: 'Tes Diagnostik',
+          subtitle:
+              'Kerjakan pelan-pelan. Soal ${_index + 1} dari ${_items.length}.',
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: (_index + 1) / _items.length,
+            minHeight: 14,
+            color: AppTokens.primary,
+          ),
+        ),
+        const SizedBox(height: AppTokens.space16),
+        StudentPanel(
+          color: StudentColors.sunshine,
+          child: Column(
+            children: [
+              const Icon(
+                Icons.hearing_rounded,
+                size: 42,
+                color: AppTokens.accent,
+              ),
+              const SizedBox(height: AppTokens.space12),
+              Text(
+                'Aspek: ${aspectLabel(item.aspect)}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppTokens.space8),
+              Text(
+                item.prompt,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: AppTokens.space8),
+              const Text('Baca pilihan jawaban, lalu ketuk satu jawaban.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space16),
+        for (var i = 0; i < item.choices.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.space8),
+            child: OutlinedButton(
+              key: ValueKey('diagnostic-answer-$i'),
+              onPressed: () => setState(() => _answers[_index] = i),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(58),
+                backgroundColor: _answers[_index] == i
+                    ? StudentColors.mint
+                    : Colors.white,
+                side: BorderSide(
+                  color: _answers[_index] == i
+                      ? AppTokens.primary
+                      : AppTokens.outline,
+                  width: 2,
+                ),
+              ),
+              child: Text(
+                item.choices[i],
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+          ),
+        const SizedBox(height: AppTokens.space8),
+        if (_index > 0)
+          OutlinedButton.icon(
+            key: const ValueKey('diagnostic-back'),
+            onPressed: () => setState(() => _index--),
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Soal sebelumnya'),
+          ),
+        StudentAction(
+          key: const ValueKey('diagnostic-next'),
+          label: _index == _items.length - 1 ? 'Selesai' : 'Lanjut',
+          icon: _index == _items.length - 1
+              ? Icons.check_rounded
+              : Icons.arrow_forward_rounded,
+          onPressed: _answers[_index] == null
+              ? () => _showSelectHint(context)
+              : _next,
+        ),
+      ],
+    );
+  }
+
+  void _next() {
+    if (_index < _items.length - 1) {
+      setState(() => _index++);
+      return;
+    }
+    final correct = <String, int>{
+      'huruf': 0,
+      'suku_kata': 0,
+      'kata': 0,
+      'kalimat': 0,
+    };
+    final totals = <String, int>{
+      'huruf': 0,
+      'suku_kata': 0,
+      'kata': 0,
+      'kalimat': 0,
+    };
+    for (var i = 0; i < _items.length; i++) {
+      final item = _items[i];
+      totals[item.aspect] = totals[item.aspect]! + 1;
+      if (_answers[i] == item.answer) {
+        correct[item.aspect] = correct[item.aspect]! + 1;
+      }
+    }
+    final scores = {
+      for (final aspect in totals.keys)
+        aspect: (correct[aspect]! * 100 / totals[aspect]!).round(),
+    };
+    StudentDemoStore.instance.finishDiagnostic(scores);
+    setState(() => _complete = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    });
+  }
+
+  Widget _result(BuildContext context) {
+    final scores = StudentDemoStore.instance.scores;
+    return ListView(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        const StudentPageHeading(
+          title: 'Tes selesai! 🎉',
+          subtitle: 'Terima kasih sudah mencoba. Ini hasil latihanmu.',
+        ),
+        StudentPanel(
+          color: StudentColors.mint,
+          child: Column(
+            children: [
+              const Icon(
+                Icons.emoji_events_rounded,
+                size: 56,
+                color: Color(0xFFCC9B27),
+              ),
+              Text(
+                'Kamu hebat sudah mencoba!',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppTokens.space12),
+              for (final aspect in const [
+                'huruf',
+                'suku_kata',
+                'kata',
+                'kalimat',
+              ]) ...[
+                StudentProgressBar(
+                  label: aspectLabel(aspect),
+                  value: scores[aspect] ?? 0,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppTokens.space8),
+                    child: Text(
+                      _abilityLabel(scores[aspect] ?? 0),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space16),
+        StudentAction(
+          key: const ValueKey('diagnostic-finish'),
+          label: 'Lihat latihan untukku',
+          icon: Icons.auto_stories_rounded,
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, '/siswa/latihan'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pushReplacementNamed(context, '/siswa'),
+          child: const Text('Kembali ke beranda'),
+        ),
+      ],
+    );
+  }
+
+  void _showSelectHint(BuildContext context) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('Pilih satu jawaban dulu ya.')));
+
+  String _abilityLabel(int score) {
+    if (score < 60) return 'Belum dikuasai';
+    if (score < 80) return 'Sedang berlatih';
+    return 'Dikuasai';
+  }
+}
