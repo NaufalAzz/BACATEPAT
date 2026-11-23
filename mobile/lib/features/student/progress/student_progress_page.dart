@@ -20,7 +20,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
   @override
   Widget build(BuildContext context) {
     final store = StudentDemoStore.instance;
-    final score = store.scores[_aspect] ?? 0;
+    final score = store.diagnosticScores[_aspect];
     final history = store.activities.where((item) => item.aspect == _aspect);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -105,7 +105,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
               for (var i = 0; i < _aspects.length; i++)
                 _LearningStep(
                   aspect: _aspects[i],
-                  score: store.scores[_aspects[i]] ?? 0,
+                  score: store.diagnosticScores[_aspects[i]],
                   last: i == _aspects.length - 1,
                 ),
             ],
@@ -117,38 +117,45 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Kemajuan tiap aspek',
+                'Hasil diagnostik per aspek',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 3),
               const Text(
-                'Skor saat ini pada empat aspek membaca',
+                'Skor dari tes diagnostik terakhir',
                 style: TextStyle(fontSize: 11, color: AppTokens.mutedText),
               ),
               const SizedBox(height: 10),
-              SizedBox(
-                height: 156,
-                width: double.infinity,
-                child: CustomPaint(
-                  key: const ValueKey('student-progress-chart'),
-                  painter: _StudentChartPainter(
-                    scores: _aspects
-                        .map((aspect) => store.scores[aspect] ?? 0)
-                        .toList(),
-                    labels: const ['Huruf', 'Suku kata', 'Kata', 'Kalimat'],
+              if (store.diagnosticScores.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('Belum ada hasil tes diagnostik.'),
+                )
+              else ...[
+                SizedBox(
+                  height: 156,
+                  width: double.infinity,
+                  child: CustomPaint(
+                    key: const ValueKey('student-progress-chart'),
+                    painter: _StudentChartPainter(
+                      scores: _aspects
+                          .map((aspect) => store.diagnosticScores[aspect] ?? 0)
+                          .toList(),
+                      labels: const ['Huruf', 'Suku kata', 'Kata', 'Kalimat'],
+                    ),
                   ),
                 ),
-              ),
-              Center(
-                child: Text(
-                  '${aspectLabel(_aspect)}  ·  $score%  ·  ${_status(score)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTokens.mutedText,
-                    fontWeight: FontWeight.w700,
+                Center(
+                  child: Text(
+                    'Skor: ${score ?? 0}% (${_status(score ?? 0)})',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTokens.mutedText,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -199,7 +206,7 @@ class _LearningStep extends StatelessWidget {
     required this.last,
   });
   final String aspect;
-  final int score;
+  final int? score;
   final bool last;
 
   @override
@@ -216,15 +223,15 @@ class _LearningStep extends StatelessWidget {
                 height: 17,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: score >= 60 ? AppTokens.primary : Colors.white,
+                  color: (score ?? 0) >= 60 ? AppTokens.primary : Colors.white,
                   border: Border.all(
-                    color: score >= 60
+                    color: (score ?? 0) >= 60
                         ? AppTokens.primary
                         : const Color(0xFFC8D7D2),
                     width: 2,
                   ),
                 ),
-                child: score >= 60
+                child: (score ?? 0) >= 60
                     ? const Icon(Icons.check, size: 11, color: Colors.white)
                     : null,
               ),
@@ -242,14 +249,16 @@ class _LearningStep extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: score >= 60 ? AppTokens.text : AppTokens.mutedText,
+              color: (score ?? 0) >= 60 ? AppTokens.text : AppTokens.mutedText,
             ),
           ),
         ),
         Text(
-          score >= 80
+          score == null
+              ? 'Belum dinilai'
+              : (score ?? 0) >= 80
               ? 'Dikuasai'
-              : score >= 60
+              : (score ?? 0) >= 60
               ? 'Sedang berlatih'
               : 'Belum dikuasai',
           style: const TextStyle(fontSize: 10, color: AppTokens.mutedText),
@@ -305,7 +314,7 @@ class _StudentChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
         maxLines: 1,
-        ellipsis: '…',
+        ellipsis: 'â€¦',
       )..layout(maxWidth: slotWidth);
       label.paint(
         canvas,

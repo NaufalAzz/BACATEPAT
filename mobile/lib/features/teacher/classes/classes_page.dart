@@ -16,7 +16,8 @@ class ClassesPage extends StatelessWidget {
       children: [
         TeacherPageHeading(
           title: 'Data Kelas',
-          subtitle: '${store.classes.length} kelas • Tahun ajaran 2026/2027',
+          subtitle:
+              '${store.accessibleClasses.length} kelas • Tahun ajaran 2026/2027',
         ),
         BacaButton(
           key: const ValueKey('add-class'),
@@ -36,14 +37,14 @@ class ClassesPage extends StatelessWidget {
               spacing: AppTokens.space12,
               runSpacing: AppTokens.space12,
               children: [
-                for (final item in store.classes)
+                for (final item in store.accessibleClasses)
                   SizedBox(
                     width: width,
                     child: _ClassCard(
                       id: item.id,
                       name: item.name,
                       grade: item.grade,
-                      count: store.students
+                      count: store.accessibleStudents
                           .where(
                             (student) =>
                                 student.classId == item.id && student.active,
@@ -101,7 +102,7 @@ class ClassesPage extends StatelessWidget {
               onPressed: () {
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
-                final duplicate = store.classes.any(
+                final duplicate = store.accessibleClasses.any(
                   (item) =>
                       item.name.toLowerCase() == name.toLowerCase() &&
                       item.id != id,
@@ -162,7 +163,9 @@ class _ClassCard extends StatelessWidget {
                 tooltip: 'Aksi kelas',
                 onSelected: (value) {
                   if (value == 'delete') {
-                    if (store.students.any((item) => item.classId == id)) {
+                    if (store.accessibleStudents.any(
+                      (item) => item.classId == id,
+                    )) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(

@@ -377,7 +377,7 @@ class StudentEvaluationPage extends StatelessWidget {
     final evaluations = store.recordings
         .where(
           (item) =>
-              item.studentId == StudentDemoStore.studentId &&
+              item.studentId == StudentDemoStore.instance.currentStudentId &&
               item.status == 'dievaluasi',
         )
         .toList();

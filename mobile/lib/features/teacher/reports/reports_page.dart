@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_session.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../student/student_demo_store.dart';
 import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
 
@@ -23,12 +25,24 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
+    final selectedStudents = store.accessibleStudents
+        .where((item) => item.id == _studentId)
+        .toList();
+    final selectedClasses = store.accessibleClasses
+        .where((item) => item.id == _classId)
+        .toList();
     final selectedLabel = _type == 'Siswa'
-        ? store.studentById(_studentId ?? -1)?.name ?? 'Pilih siswa'
-        : store.className(_classId ?? -1);
+        ? (selectedStudents.isEmpty
+              ? 'Pilih siswa'
+              : selectedStudents.first.name)
+        : (selectedClasses.isEmpty
+              ? 'Pilih kelas'
+              : selectedClasses.first.name);
     final studentRows = _type == 'Siswa'
-        ? store.students.where((item) => item.id == _studentId).toList()
-        : store.students
+        ? store.accessibleStudents
+              .where((item) => item.id == _studentId)
+              .toList()
+        : store.accessibleStudents
               .where((item) => item.classId == _classId && item.active)
               .toList();
     return ListView(
@@ -79,7 +93,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   initialValue: _classId,
                   decoration: const InputDecoration(labelText: 'Kelas'),
                   items: [
-                    for (final item in store.classes)
+                    for (final item in store.accessibleClasses)
                       DropdownMenuItem(value: item.id, child: Text(item.name)),
                   ],
                   onChanged: (value) => setState(() => _classId = value),
@@ -200,10 +214,21 @@ class _ReportsPageState extends State<ReportsPage> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   Text('Kelas ${store.className(student.classId)}'),
-                  if (student.scores == null)
+                  if (StudentDemoStore.instance.latestDiagnosticForTeacher(
+                        AppSession.teacherId ?? -1,
+                        student.id,
+                      ) ==
+                      null)
                     const Text('Belum menyelesaikan diagnostik.')
                   else
-                    for (final score in student.scores!.entries)
+                    for (final score
+                        in StudentDemoStore.instance
+                            .latestDiagnosticForTeacher(
+                              AppSession.teacherId ?? -1,
+                              student.id,
+                            )!
+                            .aspectScores
+                            .entries)
                       _ReportLine(
                         icon: Icons.circle,
                         label: aspectLabel(score.key),

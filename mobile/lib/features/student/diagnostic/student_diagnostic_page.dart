@@ -3,15 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../teacher/teacher_demo_store.dart';
 import '../student_demo_store.dart';
+import '../question_audio_button.dart';
 import '../student_widgets.dart';
-
-class _DiagnosticItem {
-  const _DiagnosticItem(this.aspect, this.prompt, this.choices, this.answer);
-  final String aspect;
-  final String prompt;
-  final List<String> choices;
-  final int answer;
-}
 
 class StudentDiagnosticPage extends StatefulWidget {
   const StudentDiagnosticPage({super.key});
@@ -21,51 +14,34 @@ class StudentDiagnosticPage extends StatefulWidget {
 }
 
 class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
-  static const _items = [
-    _DiagnosticItem('huruf', 'Huruf apa yang berbunyi “b”?', [
-      'b',
-      'd',
-      'm',
-    ], 0),
-    _DiagnosticItem('huruf', 'Kata “mata” dimulai dengan huruf…', [
-      's',
-      'm',
-      't',
-    ], 1),
-    _DiagnosticItem('suku_kata', 'Pilih suku kata “ba”.', [
-      'da',
-      'ba',
-      'ma',
-    ], 1),
-    _DiagnosticItem('suku_kata', 'Pilih suku kata “bi”.', [
-      'bu',
-      'be',
-      'bi',
-    ], 2),
-    _DiagnosticItem('kata', 'Pilih kata “bola”.', ['buku', 'bola', 'bila'], 1),
-    _DiagnosticItem('kata', 'Pilih kata “meja”.', ['meja', 'mata', 'madu'], 0),
-    _DiagnosticItem('kalimat', 'Kalimat mana yang cocok: Ibu memasak nasi.', [
-      'Ibu makan nasi.',
-      'Ibu memasak nasi.',
-      'Nasi melihat Ibu.',
-    ], 1),
-    _DiagnosticItem('kalimat', 'Kalimat mana yang cocok: Budi bermain bola.', [
-      'Bola bermain Budi.',
-      'Budi bermain bola.',
-      'Budi minum bola.',
-    ], 1),
-  ];
-
-  final _answers = <int?>[];
+  late final DemoDiagnostic? _diagnostic;
+  late final List<DemoQuestion> _items;
+  late final List<int?> _answers;
+  late final DateTime _startedAt;
+  late final bool _completedAlready;
   final _scrollController = ScrollController();
   int _index = 0;
   bool _complete = false;
+  DiagnosticAttempt? _attempt;
 
   @override
   void initState() {
     super.initState();
-    _answers.addAll(List<int?>.filled(_items.length, null));
-    _complete = StudentDemoStore.instance.diagnosticCompleted;
+    final student = StudentDemoStore.instance.student;
+    final teacherStore = TeacherDemoStore.instance;
+    _diagnostic = teacherStore.activeDiagnosticForClass(student.classId);
+    _completedAlready =
+        _diagnostic != null &&
+        StudentDemoStore.instance.attemptForDiagnostic(
+              student.id,
+              _diagnostic.id,
+            ) !=
+            null;
+    _items = _diagnostic == null || _completedAlready
+        ? const []
+        : teacherStore.diagnosticQuestionsFor(_diagnostic);
+    _answers = List<int?>.filled(_items.length, null);
+    _startedAt = DateTime.now();
   }
 
   @override
@@ -77,25 +53,21 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
   @override
   Widget build(BuildContext context) {
     if (_complete) return _result(context);
-
-    final student = StudentDemoStore.instance.student;
-    final hasActiveTest = TeacherDemoStore.instance.diagnostics.any(
-      (test) => test.classId == student.classId && test.status == 'aktif',
-    );
-    if (!hasActiveTest) return _empty(context);
-
+    if (_diagnostic == null || _items.isEmpty) return _empty(context);
     return _question(context);
   }
 
   Widget _empty(BuildContext context) => ListView(
     padding: const EdgeInsets.all(AppTokens.space16),
     children: [
-      const StudentPageHeading(
-        title: 'Tes Diagnostik',
+      StudentPageHeading(
+        title: _completedAlready ? 'Tes selesai' : 'Tes Diagnostik',
         subtitle: 'Belajar membaca langkah demi langkah.',
       ),
-      const StudentEmptyState(
-        message: 'Belum ada tes. Tunggu Bapak/Ibu Guru ya!',
+      StudentEmptyState(
+        message: _completedAlready
+            ? 'Kamu sudah menyelesaikan tes ini. Hasilnya tersimpan di halaman evaluasi.'
+            : 'Belum ada tes diagnostik yang tersedia untuk kelasmu. Tunggu Bapak/Ibu Guru ya!',
       ),
       const SizedBox(height: AppTokens.space16),
       StudentAction(
@@ -113,7 +85,7 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         StudentPageHeading(
-          title: 'Tes Diagnostik',
+          title: _diagnostic!.title,
           subtitle:
               'Kerjakan pelan-pelan. Soal ${_index + 1} dari ${_items.length}.',
         ),
@@ -130,12 +102,16 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
           color: StudentColors.sunshine,
           child: Column(
             children: [
-              const Icon(
-                Icons.hearing_rounded,
-                size: 42,
-                color: AppTokens.accent,
-              ),
-              const SizedBox(height: AppTokens.space12),
+              if (item.picture.isNotEmpty) ...[
+                Semantics(
+                  label: 'Gambar petunjuk',
+                  child: Text(
+                    item.picture,
+                    style: const TextStyle(fontSize: 54, height: 1.1),
+                  ),
+                ),
+                const SizedBox(height: AppTokens.space12),
+              ],
               Text(
                 'Aspek: ${aspectLabel(item.aspect)}',
                 style: Theme.of(context).textTheme.titleLarge,
@@ -145,6 +121,11 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
                 item.prompt,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: AppTokens.space8),
+              QuestionAudioButton(
+                key: ValueKey('diagnostic-audio-$_index'),
+                text: item.prompt,
               ),
               const SizedBox(height: AppTokens.space8),
               const Text('Baca pilihan jawaban, lalu ketuk satu jawaban.'),
@@ -161,11 +142,15 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(58),
                 backgroundColor: _answers[_index] == i
-                    ? StudentColors.mint
+                    ? _answers[_index] == item.correctAnswerIndex
+                          ? StudentColors.mint
+                          : StudentColors.peach
                     : Colors.white,
                 side: BorderSide(
                   color: _answers[_index] == i
-                      ? AppTokens.primary
+                      ? _answers[_index] == item.correctAnswerIndex
+                            ? AppTokens.primary
+                            : AppTokens.coralDark
                       : AppTokens.outline,
                   width: 2,
                 ),
@@ -177,11 +162,26 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
               ),
             ),
           ),
+        if (_answers[_index] != null) ...[
+          const SizedBox(height: AppTokens.space8),
+          StudentPanel(
+            color: _answers[_index] == item.correctAnswerIndex
+                ? StudentColors.mint
+                : StudentColors.peach,
+            child: Text(
+              _answers[_index] == item.correctAnswerIndex
+                  ? item.correctFeedback
+                  : item.hint,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        ],
         const SizedBox(height: AppTokens.space8),
         if (_index > 0)
           OutlinedButton.icon(
             key: const ValueKey('diagnostic-back'),
-            onPressed: () => setState(() => _index--),
+            onPressed: _previous,
             icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Soal sebelumnya'),
           ),
@@ -202,47 +202,84 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
   void _next() {
     if (_index < _items.length - 1) {
       setState(() => _index++);
+      _scrollToQuestionStart();
       return;
     }
-    final correct = <String, int>{
-      'huruf': 0,
-      'suku_kata': 0,
-      'kata': 0,
-      'kalimat': 0,
-    };
-    final totals = <String, int>{
-      'huruf': 0,
-      'suku_kata': 0,
-      'kata': 0,
-      'kalimat': 0,
-    };
-    for (var i = 0; i < _items.length; i++) {
-      final item = _items[i];
-      totals[item.aspect] = totals[item.aspect]! + 1;
-      if (_answers[i] == item.answer) {
-        correct[item.aspect] = correct[item.aspect]! + 1;
+
+    final submitted = <DiagnosticAnswerRecord>[];
+    for (var index = 0; index < _items.length; index++) {
+      final question = _items[index];
+      final selectedIndex = _answers[index];
+      if (selectedIndex == null) {
+        _showSelectHint(context);
+        return;
       }
+      submitted.add(
+        DiagnosticAnswerRecord(
+          questionId: question.id,
+          prompt: question.prompt,
+          picture: question.picture,
+          aspect: question.aspect,
+          level: question.level,
+          choices: question.choices,
+          correctAnswerIndex: question.correctAnswerIndex!,
+          answer: question.choices[selectedIndex],
+          correctAnswer: question.correctAnswer!,
+          isCorrect: selectedIndex == question.correctAnswerIndex,
+          hint: question.hint,
+          correctFeedback: question.correctFeedback,
+        ),
+      );
     }
-    final scores = {
-      for (final aspect in totals.keys)
-        aspect: (correct[aspect]! * 100 / totals[aspect]!).round(),
-    };
-    StudentDemoStore.instance.finishDiagnostic(scores);
+
+    final diagnostic = _diagnostic;
+    if (diagnostic == null) return;
+    final student = StudentDemoStore.instance.student;
+    _attempt = StudentDemoStore.instance.completeDiagnostic(
+      diagnosticId: diagnostic.id,
+      classId: student.classId,
+      title: diagnostic.title,
+      questionSnapshots: _items,
+      answers: submitted,
+      startedAt: _startedAt,
+      finishedAt: DateTime.now(),
+    );
+    if (_attempt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Hasil tes belum dapat disimpan. Periksa kembali jawabanmu.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _complete = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
     });
   }
 
+  void _previous() {
+    setState(() => _index--);
+    _scrollToQuestionStart();
+  }
+
+  void _scrollToQuestionStart() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    });
+  }
+
   Widget _result(BuildContext context) {
-    final scores = StudentDemoStore.instance.scores;
+    final scores = _attempt!.aspectScores;
     return ListView(
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         const StudentPageHeading(
           title: 'Tes selesai! 🎉',
-          subtitle: 'Terima kasih sudah mencoba. Ini hasil latihanmu.',
+          subtitle: 'Terima kasih sudah mencoba. Ini hasil diagnostikmu.',
         ),
         StudentPanel(
           color: StudentColors.mint,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../student/student_demo_store.dart';
+import '../../../app/app_session.dart';
 import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
 
@@ -24,11 +26,11 @@ class DiagnosticsPage extends StatelessWidget {
           label: const Text('Buat tes diagnostik'),
         ),
         const SizedBox(height: AppTokens.space16),
-        if (store.diagnostics.isEmpty)
+        if (store.accessibleDiagnostics.isEmpty)
           const TeacherPanel(
             child: EmptyState(message: 'Belum ada tes diagnostik.'),
           ),
-        for (final test in store.diagnostics)
+        for (final test in store.accessibleDiagnostics)
           TeacherPanel(
             key: ValueKey('diagnostic-${test.id}'),
             child: Column(
@@ -61,10 +63,15 @@ class DiagnosticsPage extends StatelessWidget {
                         key: ValueKey('activate-test-${test.id}'),
                         onPressed: () {
                           final activated = store.activateDiagnostic(test.id);
+                          final issues = activated
+                              ? const <String>[]
+                              : store.diagnosticValidationIssues(test.id);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                activated ? 'Tes diaktifkan.' : 'Tambahkan minimal satu soal untuk setiap aspek membaca.',
+                                activated
+                                    ? 'Tes diaktifkan.'
+                                    : issues.join(' '),
                               ),
                             ),
                           );
@@ -94,10 +101,16 @@ class DiagnosticsPage extends StatelessWidget {
   void _createDiagnostic(BuildContext context) {
     final store = TeacherDemoStore.instance;
     final titleController = TextEditingController();
-    int classId = store.classes.first.id;
+    final classes = store.accessibleClasses;
+    if (classes.isEmpty) return;
+    int classId = classes.first.id;
     final selected = <int>{};
     final approved = store.questions
-        .where((item) => item.status == 'disetujui')
+        .where(
+          (item) =>
+              item.type == 'Pilihan ganda' &&
+              item.canBeUsedFor('diagnostik', materials: store.materials),
+        )
         .toList();
     showDialog<void>(
       context: context,
@@ -120,7 +133,7 @@ class DiagnosticsPage extends StatelessWidget {
                     initialValue: classId,
                     decoration: const InputDecoration(labelText: 'Kelas'),
                     items: [
-                      for (final item in store.classes)
+                      for (final item in classes)
                         DropdownMenuItem(
                           value: item.id,
                           child: Text(item.name),
@@ -137,7 +150,9 @@ class DiagnosticsPage extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  for (final question in approved)
+                  for (final question in approved.where(
+                    (item) => item.level <= store.classById(classId)!.grade,
+                  ))
                     CheckboxListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
@@ -198,19 +213,6 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
-    final allResults = store.diagnosticStudents;
-    final results = allResults.where((student) {
-      final matchesName = student.name.toLowerCase().contains(_query);
-      final average =
-          student.scores!.values.reduce((a, b) => a + b) /
-          student.scores!.length;
-      final status = average < 60
-          ? 'Belum dikuasai'
-          : average < 80
-          ? 'Sedang berlatih'
-          : 'Dikuasai';
-      return matchesName && (_status == 'Semua status' || status == _status);
-    }).toList();
     final diagnostic = widget.diagnosticId == null
         ? null
         : store.diagnostics
@@ -220,12 +222,54 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
         : store.diagnostics.firstWhere(
             (item) => item.id == widget.diagnosticId,
           );
+    final teacherId = AppSession.teacherId;
+    final permittedDiagnostic =
+        diagnostic != null &&
+        teacherId != null &&
+        store.canTeacherAccessClass(teacherId, diagnostic.classId);
+    if (!permittedDiagnostic) {
+      return ListView(
+        padding: const EdgeInsets.all(AppTokens.space16),
+        children: const [
+          TeacherPageHeading(
+            title: 'Hasil Diagnostik',
+            subtitle: 'Hasil tes tidak tersedia untuk akun Guru ini.',
+          ),
+          TeacherPanel(
+            child: EmptyState(
+              message: 'Akses ke kelas tes ini tidak tersedia.',
+            ),
+          ),
+        ],
+      );
+    }
+    final latestByStudent = <int, DiagnosticAttempt>{};
+    for (final attempt
+        in StudentDemoStore.instance
+            .diagnosticHistoryForTeacher(teacherId)
+            .where((item) => item.diagnosticId == diagnostic.id)) {
+      final previous = latestByStudent[attempt.studentId];
+      if (previous == null || attempt.finishedAt.isAfter(previous.finishedAt)) {
+        latestByStudent[attempt.studentId] = attempt;
+      }
+    }
+    final rows = <_DiagnosticStudentResult>[];
+    for (final attempt in latestByStudent.values) {
+      final student = store.studentById(attempt.studentId);
+      if (student == null) continue;
+      final status = _diagnosticStatus(attempt.score);
+      if (student.name.toLowerCase().contains(_query) &&
+          (_status == 'Semua status' || status == _status)) {
+        rows.add(_DiagnosticStudentResult(student: student, attempt: attempt));
+      }
+    }
+    rows.sort((a, b) => a.student.name.compareTo(b.student.name));
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         TeacherPageHeading(
           title: 'Hasil Diagnostik',
-          subtitle: diagnostic?.title ?? 'Lihat hasil tes membaca siswa.',
+          subtitle: diagnostic.title,
         ),
         Row(
           children: [
@@ -286,7 +330,7 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
           ],
         ),
         const SizedBox(height: AppTokens.space16),
-        if (results.isEmpty)
+        if (rows.isEmpty)
           const TeacherPanel(
             child: EmptyState(
               message: 'Tidak ada hasil yang cocok dengan pilihan ini.',
@@ -360,12 +404,12 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
                     ],
                   ),
                 ),
-                for (var index = 0; index < results.length; index++) ...[
+                for (var index = 0; index < rows.length; index++) ...[
                   InkWell(
                     onTap: () => Navigator.pushNamed(
                       context,
                       '/guru/siswa/detail',
-                      arguments: results[index].id,
+                      arguments: rows[index].student.id,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -380,7 +424,7 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  results[index].name,
+                                  rows[index].student.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -390,7 +434,7 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
                                   ),
                                 ),
                                 Text(
-                                  store.className(results[index].classId),
+                                  store.className(rows[index].student.classId),
                                   style: const TextStyle(
                                     fontSize: 9,
                                     color: AppTokens.mutedText,
@@ -410,12 +454,17 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
                                   ? 2
                                   : 1,
                               child: Text(
-                                '${results[index].scores![aspect]}',
+                                '${rows[index].attempt.aspectScores[aspect] ?? 0}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: results[index].scores![aspect]! < 60
+                                  color:
+                                      (rows[index]
+                                                  .attempt
+                                                  .aspectScores[aspect] ??
+                                              0) <
+                                          60
                                       ? AppTokens.coral
                                       : AppTokens.text,
                                 ),
@@ -425,7 +474,7 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
                       ),
                     ),
                   ),
-                  if (index < results.length - 1)
+                  if (index < rows.length - 1)
                     const Divider(height: 1, color: AppTokens.outline),
                 ],
               ],
@@ -435,6 +484,22 @@ class _DiagnosticResultsPageState extends State<DiagnosticResultsPage> {
     );
   }
 }
+
+class _DiagnosticStudentResult {
+  const _DiagnosticStudentResult({
+    required this.student,
+    required this.attempt,
+  });
+
+  final DemoStudent student;
+  final DiagnosticAttempt attempt;
+}
+
+String _diagnosticStatus(int score) => score < 60
+    ? 'Belum dikuasai'
+    : score < 80
+    ? 'Sedang berlatih'
+    : 'Dikuasai';
 
 const _resultHeaderStyle = TextStyle(
   fontSize: 8,

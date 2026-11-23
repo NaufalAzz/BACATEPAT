@@ -1,8 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../teacher/teacher_demo_store.dart';
 import '../student_demo_store.dart';
+import '../question_audio_button.dart';
 import '../student_widgets.dart';
 
 class StudentPracticeListPage extends StatefulWidget {
@@ -139,7 +142,9 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
                                 borderRadius: BorderRadius.circular(9),
                                 child: LinearProgressIndicator(
                                   value:
-                                      (StudentDemoStore.instance.scores[material
+                                      (StudentDemoStore
+                                              .instance
+                                              .practiceScores[material
                                               .aspect] ??
                                           0) /
                                       100,
@@ -186,6 +191,9 @@ class StudentMaterialDetailPage extends StatelessWidget {
         ),
       );
     }
+    final hasPracticeQuestions = store
+        .practiceQuestionsForMaterial(material.id)
+        .isNotEmpty;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
@@ -280,26 +288,25 @@ class StudentMaterialDetailPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppTokens.space16),
-        StudentAction(
-          key: const ValueKey('material-start-exercise'),
-          label: 'Mulai latihan',
-          icon: Icons.play_arrow_rounded,
-          onPressed: () => Navigator.pushNamed(
-            context,
-            '/siswa/latihan/kerjakan',
-            arguments: material.id,
+        if (hasPracticeQuestions)
+          StudentAction(
+            key: const ValueKey('material-start-exercise'),
+            label: 'Mulai latihan',
+            icon: Icons.play_arrow_rounded,
+            onPressed: () => Navigator.pushNamed(
+              context,
+              '/siswa/latihan/kerjakan',
+              arguments: material.id,
+            ),
+          )
+        else
+          const StudentEmptyState(
+            message:
+                'Latihan untuk materi ini belum tersedia. Coba materi lain ya!',
           ),
-        ),
       ],
     );
   }
-}
-
-class _PracticeQuestion {
-  const _PracticeQuestion(this.prompt, this.choices, this.correctIndex);
-  final String prompt;
-  final List<String> choices;
-  final int correctIndex;
 }
 
 class StudentExercisePage extends StatefulWidget {
@@ -311,35 +318,51 @@ class StudentExercisePage extends StatefulWidget {
 }
 
 class _StudentExercisePageState extends State<StudentExercisePage> {
+  late final DemoMaterial? _material;
+  late final List<DemoQuestion> _questions;
+  late DateTime _startedAt;
   int _questionIndex = 0;
   int _correct = 0;
   int? _selected;
   bool _finished = false;
+  PracticeAttempt? _attempt;
+  final List<PracticeAnswerRecord> _answers = [];
 
-  static const _questions = [
-    _PracticeQuestion('Pilih suku kata “ba”.', ['ba', 'da', 'ma'], 0),
-    _PracticeQuestion('Pilih suku kata “bi”.', ['bu', 'be', 'bi'], 2),
-    _PracticeQuestion('Kata “bola” dimulai dengan huruf apa?', [
-      'b',
-      'm',
-      's',
-    ], 0),
-    _PracticeQuestion('Mana yang dibaca “buku”?', ['buka', 'buku', 'daku'], 1),
-    _PracticeQuestion('Lengkapi kalimat: Ibu membeli ___.', [
-      'bola',
-      'lari',
-      'pagi',
-    ], 0),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final store = TeacherDemoStore.instance;
+    _material = widget.materialId == null
+        ? null
+        : store.materialById(widget.materialId!);
+    final eligible = _material == null || _material.status != 'aktif'
+        ? <DemoQuestion>[]
+        : store.practiceQuestionsForMaterial(_material.id).toList();
+    eligible.shuffle(Random());
+    _questions = eligible
+        .map((item) => item.copyWithIdAndStatus(item.id, item.status))
+        .toList(growable: false);
+    _startedAt = DateTime.now();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final material = widget.materialId == null
-        ? null
-        : TeacherDemoStore.instance.materialById(widget.materialId!);
-    final title = material?.title ?? 'Latihan membaca';
-    final aspect = material?.aspect ?? 'suku_kata';
-    if (_finished) return _result(context, title, aspect);
+    final material = _material;
+    if (material == null || material.status != 'aktif') {
+      return const Center(
+        child: StudentEmptyState(message: 'Materi ini belum tersedia.'),
+      );
+    }
+    if (_questions.isEmpty) {
+      return const Center(
+        child: StudentEmptyState(
+          message:
+              'Latihan untuk materi ini belum tersedia. Coba materi lain ya!',
+        ),
+      );
+    }
+    if (_finished) return _result(context);
+
     final question = _questions[_questionIndex];
     return Column(
       children: [
@@ -364,7 +387,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '+${(_questionIndex + 1) * 10} bintang',
+                    '${_correct + (_selected == question.correctAnswerIndex ? 1 : 0)} bintang',
                     maxLines: 1,
                     style: const TextStyle(
                       fontSize: 12,
@@ -389,13 +412,16 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                 color: Colors.white,
                 child: Column(
                   children: [
-                    Image.asset(
-                      'assets/illustrations/reading-book.png',
-                      width: 100,
-                      height: 78,
-                      semanticLabel: 'Ilustrasi buku untuk latihan membaca',
-                    ),
-                    const SizedBox(height: 6),
+                    if (question.picture.isNotEmpty) ...[
+                      Semantics(
+                        label: 'Gambar petunjuk',
+                        child: Text(
+                          question.picture,
+                          style: const TextStyle(fontSize: 54, height: 1.1),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                     Text(
                       question.prompt,
                       textAlign: TextAlign.center,
@@ -404,6 +430,11 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                         fontWeight: FontWeight.w800,
                         color: AppTokens.text,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    QuestionAudioButton(
+                      key: ValueKey('exercise-audio-$_questionIndex'),
+                      text: question.prompt,
                     ),
                   ],
                 ),
@@ -422,11 +453,15 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 50),
                           backgroundColor: _selected == i
-                              ? StudentColors.mint
+                              ? _selected == question.correctAnswerIndex
+                                    ? StudentColors.mint
+                                    : StudentColors.peach
                               : Colors.white,
                           side: BorderSide(
                             color: _selected == i
-                                ? AppTokens.primary
+                                ? _selected == question.correctAnswerIndex
+                                      ? AppTokens.primary
+                                      : AppTokens.coralDark
                                 : AppTokens.outline,
                             width: 2,
                           ),
@@ -448,13 +483,13 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
               ),
               if (_selected != null)
                 StudentPanel(
-                  color: _selected == question.correctIndex
+                  color: _selected == question.correctAnswerIndex
                       ? StudentColors.mint
                       : StudentColors.peach,
                   child: Text(
-                    _selected == question.correctIndex
-                        ? 'Hebat! Jawabanmu benar! ⭐'
-                        : 'Tidak apa-apa, terus mencoba ya! 🌱',
+                    _selected == question.correctAnswerIndex
+                        ? question.correctFeedback
+                        : 'Tidak apa-apa. ${question.hint}',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
@@ -471,30 +506,50 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                   ? 'Lihat hasil'
                   : 'Soal berikutnya',
               icon: Icons.arrow_forward_rounded,
-              onPressed: () {
-                if (_selected == question.correctIndex) _correct++;
-                if (_questionIndex == _questions.length - 1) {
-                  final score = (_correct * 100 / _questions.length).round();
-                  StudentDemoStore.instance.finishPractice(
-                    title: title,
-                    aspect: aspect,
-                    score: score,
-                  );
-                  setState(() => _finished = true);
-                } else {
-                  setState(() {
-                    _questionIndex++;
-                    _selected = null;
-                  });
-                }
-              },
+              onPressed: _submitCurrentAnswer,
             ),
           ),
       ],
     );
   }
 
-  Widget _result(BuildContext context, String title, String aspect) => ListView(
+  void _submitCurrentAnswer() {
+    final material = _material;
+    if (material == null) return;
+    final question = _questions[_questionIndex];
+    final selected = _selected!;
+    final answer = PracticeAnswerRecord(
+      questionId: question.id,
+      aspect: question.aspect,
+      answer: question.choices[selected],
+      correctAnswer: question.correctAnswer!,
+      isCorrect: selected == question.correctAnswerIndex,
+    );
+    _answers.add(answer);
+    if (answer.isCorrect) _correct++;
+
+    if (_questionIndex == _questions.length - 1) {
+      _attempt = StudentDemoStore.instance.completePractice(
+        materialId: material.id,
+        title: material.title,
+        aspect: material.aspect,
+        availableQuestionCount: _questions.length,
+        questionSnapshots: List.unmodifiable(_questions),
+        answers: List.unmodifiable(_answers),
+        startedAt: _startedAt,
+        finishedAt: DateTime.now(),
+      );
+      setState(() => _finished = _attempt != null);
+      return;
+    }
+
+    setState(() {
+      _questionIndex++;
+      _selected = null;
+    });
+  }
+
+  Widget _result(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
     children: [
       const StudentPageHeading(
@@ -512,7 +567,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
             ),
             const SizedBox(height: AppTokens.space8),
             Text(
-              '${StudentDemoStore.instance.lastPracticeScore ?? 0}%',
+              '${_attempt?.score ?? 0}%',
               style: Theme.of(context).textTheme.displaySmall,
             ),
             Text(
@@ -521,7 +576,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
             ),
             const SizedBox(height: AppTokens.space8),
             Text(
-              'Terus berlatih ${aspectLabel(aspect).toLowerCase()} ya!',
+              'Terus berlatih ${aspectLabel(_material!.aspect).toLowerCase()} ya!',
               textAlign: TextAlign.center,
             ),
           ],
@@ -533,8 +588,11 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
         label: 'Baca dengan suara',
         icon: Icons.mic_rounded,
         color: const Color(0xFF4F71A8),
-        onPressed: () =>
-            Navigator.pushNamed(context, '/siswa/rekaman', arguments: title),
+        onPressed: () => Navigator.pushNamed(
+          context,
+          '/siswa/rekaman',
+          arguments: _material.title,
+        ),
       ),
       const SizedBox(height: AppTokens.space8),
       OutlinedButton.icon(
@@ -543,6 +601,9 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
           _questionIndex = 0;
           _correct = 0;
           _selected = null;
+          _answers.clear();
+          _attempt = null;
+          _startedAt = DateTime.now();
           _finished = false;
         }),
         icon: const Icon(Icons.refresh_rounded),

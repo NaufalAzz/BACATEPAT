@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_session.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../student/student_demo_store.dart';
 import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
 
@@ -11,10 +13,22 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
     final active = store.activeStudents;
+    final attempts = StudentDemoStore.instance.diagnosticHistoryForTeacher(
+      AppSession.teacherId ?? -1,
+    );
+    final latestByStudent = <int, DiagnosticAttempt>{};
+    final activeStudentIds = active.map((item) => item.id).toSet();
+    for (final attempt in attempts) {
+      if (!activeStudentIds.contains(attempt.studentId)) continue;
+      final current = latestByStudent[attempt.studentId];
+      if (current == null || attempt.finishedAt.isAfter(current.finishedAt)) {
+        latestByStudent[attempt.studentId] = attempt;
+      }
+    }
     final diagnosticPercent = active.isEmpty
         ? 0
-        : (store.completedDiagnosticCount * 100 / active.length).round();
-    final averages = _averageScores(store.diagnosticStudents);
+        : (latestByStudent.length * 100 / active.length).round();
+    final averages = _averageScores(latestByStudent.values.toList());
     return ListView(
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
@@ -50,7 +64,7 @@ class DashboardPage extends StatelessWidget {
                   width: tileWidth,
                   child: MetricTile(
                     label: 'Kelas',
-                    value: '${store.classes.length}',
+                    value: '${store.accessibleClasses.length}',
                     icon: Icons.class_outlined,
                     tint: AppTokens.accent,
                   ),
@@ -116,7 +130,7 @@ class DashboardPage extends StatelessWidget {
                       ),
                       title: Text(student.name),
                       subtitle: Text(
-                        '${store.className(student.classId)} • ${student.masterySummary}',
+                        '${store.className(student.classId)} • ${masterySummaryFor(StudentDemoStore.instance.latestDiagnosticForTeacher(AppSession.teacherId ?? -1, student.id)?.aspectScores)}',
                       ),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => Navigator.pushNamed(
@@ -162,7 +176,7 @@ class DashboardPage extends StatelessWidget {
           ),
           child: Column(
             children: [
-              for (final recording in store.recordings.where(
+              for (final recording in store.accessibleRecordings.where(
                 (item) => item.status == 'terkirim',
               ))
                 Builder(
@@ -197,10 +211,13 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
-Map<String, int> _averageScores(List<DemoStudent> students) {
+Map<String, int> _averageScores(List<DiagnosticAttempt> attempts) {
   final result = <String, int>{};
   for (final aspect in const ['huruf', 'suku_kata', 'kata', 'kalimat']) {
-    final scores = students.map((item) => item.scores![aspect]!).toList();
+    final scores = attempts
+        .map((item) => item.aspectScores[aspect])
+        .whereType<int>()
+        .toList();
     result[aspect] = scores.isEmpty
         ? 0
         : (scores.reduce((a, b) => a + b) / scores.length).round();

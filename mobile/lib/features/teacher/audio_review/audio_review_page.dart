@@ -29,13 +29,13 @@ class _AudioReviewPageState extends State<AudioReviewPage> {
   void initState() {
     super.initState();
     final store = TeacherDemoStore.instance;
-    final pending = store.recordings.where((item) {
+    final pending = store.accessibleRecordings.where((item) {
       final student = store.studentById(item.studentId);
       return item.parentConsent &&
           student?.parentConsent == true &&
           item.status == 'terkirim';
     });
-    final eligible = store.recordings.where((item) {
+    final eligible = store.accessibleRecordings.where((item) {
       return item.parentConsent &&
           store.studentById(item.studentId)?.parentConsent == true;
     });
@@ -59,7 +59,7 @@ class _AudioReviewPageState extends State<AudioReviewPage> {
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
-    final eligible = store.recordings
+    final eligible = store.accessibleRecordings
         .where(
           (item) =>
               item.parentConsent &&

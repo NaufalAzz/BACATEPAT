@@ -7,6 +7,8 @@ import 'package:mobile/app/app_router.dart';
 import 'package:mobile/app/app_session.dart';
 import 'package:mobile/app/navigation_plan.dart';
 import 'package:mobile/core/theme/app_tokens.dart';
+import 'package:mobile/features/student/student_demo_store.dart';
+import 'package:mobile/features/teacher/teacher_demo_store.dart';
 
 void main() {
   setUp(AppSession.end);
@@ -152,6 +154,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('login-submit')));
     await tester.pumpAndSettle();
     expect(AppSession.role, AppRole.teacher);
+    expect(AppSession.userId, 1);
+    expect(AppSession.teacherId, 1);
     expect(find.text('Ringkasan kelas'), findsOneWidget);
   });
 
@@ -162,7 +166,7 @@ void main() {
     expect(find.text('Siap membaca hari ini?'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('login-username')),
-      'andi',
+      'andi.1a',
     );
     await tester.enterText(
       find.byKey(const ValueKey('login-password')),
@@ -171,6 +175,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('login-submit')));
     await tester.pumpAndSettle();
     expect(AppSession.role, AppRole.student);
+    expect(AppSession.userId, 101);
+    expect(AppSession.studentId, 1);
     expect(find.text('Selamat pagi,'), findsOneWidget);
     expect(find.byKey(const ValueKey('student-tab-S4')), findsOneWidget);
     expect(find.byKey(const ValueKey('student-tab-S9')), findsOneWidget);
@@ -222,6 +228,104 @@ void main() {
     );
     expect(_contrastRatio(Colors.white, AppTokens.primary), greaterThan(4.5));
   });
+
+  testWidgets('practice follows its material and scores the matching aspect', (
+    tester,
+  ) async {
+    final question = TeacherDemoStore.instance
+        .practiceQuestionsForMaterial(5)
+        .single;
+    await _openRoute(
+      tester,
+      '/siswa/latihan',
+      width: 390,
+      role: AppRole.student,
+    );
+    await tester.tap(find.byKey(const ValueKey('practice-material-5')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('material-start-exercise')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('material-start-exercise')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Soal 1 dari 1'), findsOneWidget);
+    expect(find.text(question.prompt), findsOneWidget);
+    expect(find.text(question.picture), findsOneWidget);
+    await tester.tap(
+      find.byKey(ValueKey('exercise-answer-${question.correctAnswerIndex}')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('exercise-next')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('100%'), findsOneWidget);
+    expect(StudentDemoStore.instance.practiceScores['huruf'], 100);
+  });
+
+  testWidgets('wrong practice answer shows a hint without marking the key', (
+    tester,
+  ) async {
+    final question = TeacherDemoStore.instance
+        .practiceQuestionsForMaterial(5)
+        .single;
+    await _openRoute(
+      tester,
+      '/siswa/latihan',
+      width: 390,
+      role: AppRole.student,
+    );
+    await tester.tap(find.byKey(const ValueKey('practice-material-5')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('material-start-exercise')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('material-start-exercise')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(
+        ValueKey(
+          'exercise-answer-${(question.correctAnswerIndex! + 1) % question.choices.length}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tidak apa-apa. ${question.hint}'), findsOneWidget);
+    expect(find.text(question.correctFeedback), findsNothing);
+  });
+  testWidgets('diagnostic feedback responds to the selected answer', (
+    tester,
+  ) async {
+    await _openRoute(
+      tester,
+      '/siswa/diagnostik',
+      width: 390,
+      role: AppRole.student,
+    );
+    await tester.tap(find.byKey(const ValueKey('diagnostic-answer-1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Sebutkan nama bendanya, lalu dengarkan bunyi paling awal.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Tepat! Kamu menemukan bunyi huruf awalnya.'),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('diagnostic-answer-0')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tepat! Kamu menemukan bunyi huruf awalnya.'),
+      findsOneWidget,
+    );
+  });
 }
 
 Future<void> _openRoute(
@@ -234,7 +338,13 @@ Future<void> _openRoute(
   tester.view.physicalSize = Size(width, width == 1280 ? 900 : 844);
   await tester.pumpWidget(const BacaTepatApp());
   await tester.pump();
-  if (role != null) AppSession.start(role);
+  AppSession.end();
+  StudentDemoStore.instance.resetForTests();
+  if (role == AppRole.student) {
+    AppSession.startStudent(user: 101, student: 1);
+  } else if (role == AppRole.teacher) {
+    AppSession.startTeacher(user: 1, teacher: 1);
+  }
   AppRouter.navigatorKey.currentState!.pushNamedAndRemoveUntil(
     path,
     (_) => false,

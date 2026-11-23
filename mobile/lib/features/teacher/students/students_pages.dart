@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../app/app_session.dart';
+import '../../student/student_demo_store.dart';
 import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
 
@@ -27,7 +29,7 @@ class _StudentsPageState extends State<StudentsPage> {
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
     final query = _searchController.text.trim().toLowerCase();
-    final filtered = store.students.where((student) {
+    final filtered = store.accessibleStudents.where((student) {
       final matchesQuery =
           student.name.toLowerCase().contains(query) ||
           student.username.toLowerCase().contains(query);
@@ -41,7 +43,7 @@ class _StudentsPageState extends State<StudentsPage> {
         TeacherPageHeading(
           title: 'Data Siswa',
           subtitle:
-              '${store.activeStudents.length} siswa aktif di ${store.classes.length} kelas.',
+              '${store.activeStudents.length} siswa aktif di ${store.accessibleClasses.length} kelas.',
         ),
         LayoutBuilder(
           builder: (context, constraints) => constraints.maxWidth < 540
@@ -128,9 +130,23 @@ class _StudentsPageState extends State<StudentsPage> {
                       ),
                       StatusBadge(
                         label: student.active
-                            ? student.masterySummary
+                            ? masterySummaryFor(
+                                StudentDemoStore.instance
+                                    .latestDiagnosticForTeacher(
+                                      AppSession.teacherId ?? -1,
+                                      student.id,
+                                    )
+                                    ?.aspectScores,
+                              )
                             : 'Nonaktif',
-                        good: student.active && student.scores != null,
+                        good:
+                            student.active &&
+                            StudentDemoStore.instance
+                                    .latestDiagnosticForTeacher(
+                                      AppSession.teacherId ?? -1,
+                                      student.id,
+                                    ) !=
+                                null,
                       ),
                     ],
                   ),
@@ -190,7 +206,7 @@ class _StudentsPageState extends State<StudentsPage> {
           decoration: const InputDecoration(labelText: 'Kelas'),
           items: [
             const DropdownMenuItem<int?>(value: null, child: Text('Semua')),
-            for (final item in store.classes)
+            for (final item in store.accessibleClasses)
               DropdownMenuItem<int?>(value: item.id, child: Text(item.name)),
           ],
           onChanged: (value) => setState(() => _classFilter = value),
@@ -230,6 +246,7 @@ class _StudentFormPageState extends State<StudentFormPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _username;
+  late final TextEditingController _password;
   late final TextEditingController _guardian;
   late int _classId;
   late bool _parentConsent;
@@ -237,7 +254,12 @@ class _StudentFormPageState extends State<StudentFormPage> {
 
   DemoStudent? get _student => widget.studentId == null
       ? null
-      : TeacherDemoStore.instance.studentById(widget.studentId!);
+      : (TeacherDemoStore.instance.canTeacherAccessStudent(
+              AppSession.teacherId ?? -1,
+              widget.studentId!,
+            )
+            ? TeacherDemoStore.instance.studentById(widget.studentId!)
+            : null);
 
   @override
   void initState() {
@@ -245,8 +267,12 @@ class _StudentFormPageState extends State<StudentFormPage> {
     final student = _student;
     _name = TextEditingController(text: student?.name ?? '');
     _username = TextEditingController(text: student?.username ?? '');
+    _password = TextEditingController();
     _guardian = TextEditingController(text: student?.guardianName ?? '');
-    _classId = student?.classId ?? TeacherDemoStore.instance.classes.first.id;
+    _classId =
+        student?.classId ??
+        TeacherDemoStore.instance.accessibleClasses.firstOrNull?.id ??
+        -1;
     _parentConsent = student?.parentConsent ?? false;
     _aiConsent = student?.aiConsent ?? false;
   }
@@ -255,6 +281,7 @@ class _StudentFormPageState extends State<StudentFormPage> {
   void dispose() {
     _name.dispose();
     _username.dispose();
+    _password.dispose();
     _guardian.dispose();
     super.dispose();
   }
@@ -298,7 +325,8 @@ class _StudentFormPageState extends State<StudentFormPage> {
                 if (!isEditing) ...[
                   const SizedBox(height: AppTokens.space16),
                   TextFormField(
-                    key: ValueKey('form-student-password'),
+                    key: const ValueKey('form-student-password'),
+                    controller: _password,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Kata sandi awal (simulasi)',
@@ -312,7 +340,7 @@ class _StudentFormPageState extends State<StudentFormPage> {
                   initialValue: _classId,
                   decoration: const InputDecoration(labelText: 'Kelas'),
                   items: [
-                    for (final item in store.classes)
+                    for (final item in store.accessibleClasses)
                       DropdownMenuItem(
                         value: item.id,
                         child: Text('${item.name} • kelas ${item.grade}'),
@@ -404,6 +432,7 @@ class _StudentFormPageState extends State<StudentFormPage> {
       id: widget.studentId,
       name: _name.text.trim(),
       username: _username.text.trim(),
+      password: widget.studentId == null ? _password.text : null,
       classId: _classId,
       guardianName: _guardian.text.trim(),
       parentConsent: _parentConsent,
@@ -425,7 +454,13 @@ class StudentDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
-    final student = store.studentById(studentId ?? 1);
+    final teacherId = AppSession.teacherId;
+    final student =
+        studentId == null ||
+            teacherId == null ||
+            !store.canTeacherAccessStudent(teacherId, studentId!)
+        ? null
+        : store.studentById(studentId!);
     if (student == null) {
       return const Scaffold(
         body: EmptyState(message: 'Data siswa tidak ditemukan.'),
@@ -467,13 +502,22 @@ class StudentDetailPage extends StatelessWidget {
         const SizedBox(height: AppTokens.space16),
         TeacherPanel(
           title: 'Hasil diagnostik',
-          child: student.scores == null
+          child:
+              StudentDemoStore.instance.latestDiagnosticForTeacher(
+                    teacherId!,
+                    student.id,
+                  ) ==
+                  null
               ? const EmptyState(
                   message: 'Belum ada hasil diagnostik untuk siswa ini.',
                 )
               : Column(
                   children: [
-                    for (final entry in student.scores!.entries)
+                    for (final entry
+                        in StudentDemoStore.instance
+                            .latestDiagnosticForTeacher(teacherId, student.id)!
+                            .aspectScores
+                            .entries)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(aspectLabel(entry.key)),
@@ -495,7 +539,9 @@ class StudentDetailPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Ringkasan: ${student.masterySummary}'),
+              Text(
+                'Ringkasan: ${masterySummaryFor(StudentDemoStore.instance.latestDiagnosticForTeacher(teacherId, student.id)?.aspectScores)}',
+              ),
               const SizedBox(height: AppTokens.space8),
               Text(
                 'Rekomendasi aktif: ${store.materialById(store.recommendationFor(student.id) ?? -1)?.title ?? 'Belum ada'}',

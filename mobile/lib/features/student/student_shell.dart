@@ -61,8 +61,14 @@ class StudentShell extends StatelessWidget {
                     radius: 17,
                     backgroundColor: AppTokens.sunshine,
                     child: Text(
-                      StudentDemoStore.instance.studentName.characters.first
-                          .toUpperCase(),
+                      StudentDemoStore.instance.studentName.isEmpty
+                          ? '?'
+                          : StudentDemoStore
+                                .instance
+                                .studentName
+                                .characters
+                                .first
+                                .toUpperCase(),
                       style: const TextStyle(
                         color: AppTokens.text,
                         fontWeight: FontWeight.w800,

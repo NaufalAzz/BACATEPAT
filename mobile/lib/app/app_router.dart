@@ -5,6 +5,8 @@ import '../features/auth/login_page.dart';
 import 'role_selection_page.dart';
 import '../features/student/student_shell.dart';
 import '../features/teacher/teacher_shell.dart';
+import '../features/teacher/teacher_demo_store.dart';
+import '../features/student/student_demo_store.dart';
 import 'app_session.dart';
 import 'navigation_plan.dart';
 
@@ -55,7 +57,12 @@ abstract final class AppRouter {
     }
 
     final activeRole = AppSession.role;
-    if (activeRole == null) {
+    final hasValidIdentity = activeRole == AppRole.student
+        ? StudentDemoStore.instance.currentStudentId != null
+        : activeRole == AppRole.teacher &&
+              AppSession.userId == TeacherDemoStore.instance.demoTeacherId &&
+              AppSession.teacherId == TeacherDemoStore.instance.demoTeacherId;
+    if (activeRole == null || !hasValidIdentity) {
       return MaterialPageRoute<void>(
         settings: settings,
         builder: (_) => const RoleSelectionPage(),

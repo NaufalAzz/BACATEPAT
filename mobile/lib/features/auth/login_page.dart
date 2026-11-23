@@ -4,6 +4,7 @@ import '../../app/app_session.dart';
 import '../../app/navigation_plan.dart';
 import '../../core/components/baca_tepat_mark.dart';
 import '../../core/theme/app_tokens.dart';
+import '../teacher/teacher_demo_store.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({required this.role, super.key});
@@ -37,7 +38,24 @@ class _LoginPageState extends State<LoginPage> {
 
   void _enterPreview() {
     if (!_formKey.currentState!.validate()) return;
-    AppSession.start(_isTeacher ? AppRole.teacher : AppRole.student);
+    final store = TeacherDemoStore.instance;
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+    if (_isTeacher) {
+      if (!store.authenticateTeacher(username, password)) {
+        _showInvalidLogin();
+        return;
+      }
+      final teacherId = store.demoTeacherId!;
+      AppSession.startTeacher(user: teacherId, teacher: teacherId);
+    } else {
+      final student = store.studentByUsername(username);
+      if (!store.authenticateStudent(username, password) || student == null) {
+        _showInvalidLogin();
+        return;
+      }
+      AppSession.startStudent(user: student.userId, student: student.id);
+    }
     Navigator.pushNamedAndRemoveUntil(context, _homePath, (_) => false);
   }
 

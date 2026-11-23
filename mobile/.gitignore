@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+mobile/review/edge-profile/
+mobile/review/edge-profile-welcome-cold/
+mobile/.appdata/
+mobile/.dart_tool/
+mobile/build/
