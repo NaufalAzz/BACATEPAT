@@ -17,7 +17,10 @@ abstract final class AppRouter {
     ...NavigationPlan.student,
   ];
 
-  static Route<void> onGenerateRoute(RouteSettings settings) {
+  static Route<void> onGenerateRoute(
+    RouteSettings settings, {
+    bool preview = false,
+  }) {
     if (settings.name == '/welcome') {
       return MaterialPageRoute<void>(
         settings: settings,
@@ -52,7 +55,7 @@ abstract final class AppRouter {
     if (resolvedScreen.id == 'G1' || resolvedScreen.id == 'S1') {
       return MaterialPageRoute<void>(
         settings: settings,
-        builder: (_) => LoginPage(role: resolvedScreen.role),
+        builder: (_) => LoginPage(role: resolvedScreen.role, preview: preview),
       );
     }
 
