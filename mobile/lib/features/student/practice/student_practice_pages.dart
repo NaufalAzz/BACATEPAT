@@ -22,153 +22,189 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
-    final materials = store.materials
-        .where(
-          (item) =>
-              item.status == 'aktif' &&
-              (_aspect == 'semua' || item.aspect == _aspect),
-        )
-        .toList();
-    final recommendationId = StudentDemoStore.instance.recommendedMaterialId;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        const StudentPageHeading(
-          title: 'Latihan Membaca',
-          subtitle: 'Pilih bacaan yang ingin kamu latih hari ini.',
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final option in const [
-                ('semua', 'Semua'),
-                ('huruf', 'Huruf'),
-                ('suku_kata', 'Suku kata'),
-                ('kata', 'Kata'),
-                ('kalimat', 'Kalimat'),
-              ]) ...[
-                if (option.$1 != 'semua') const SizedBox(width: 6),
-                ChoiceChip(
-                  key: ValueKey('practice-filter-${option.$1}'),
-                  label: Text(option.$2),
-                  selected: _aspect == option.$1,
-                  onSelected: (_) => setState(() => _aspect = option.$1),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        if (materials.isEmpty)
-          const StudentEmptyState(
-            message:
-                'Belum ada latihan untuk pilihan ini. Coba pilihan lain ya!',
-          )
-        else
-          for (final material in materials)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 9),
-              child: Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  key: ValueKey('practice-material-${material.id}'),
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                    '/siswa/latihan/materi',
-                    arguments: material.id,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: _aspectColor(material.aspect),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Text(
-                            _aspectGlyph(material.aspect),
-                            style: const TextStyle(
-                              fontSize: 19,
-                              color: AppTokens.primary,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 11),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      material.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: AppTokens.text,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  if (material.id == recommendationId)
-                                    const Icon(
-                                      Icons.star_rounded,
-                                      size: 15,
-                                      color: Color(0xFFD8A42A),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${aspectLabel(material.aspect)} · Tingkat ${material.level}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTokens.mutedText,
-                                ),
-                              ),
-                              const SizedBox(height: 7),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(9),
-                                child: LinearProgressIndicator(
-                                  value:
-                                      (StudentDemoStore
-                                              .instance
-                                              .practiceScores[material
-                                              .aspect] ??
-                                          0) /
-                                      100,
-                                  minHeight: 5,
-                                  backgroundColor: const Color(0xFFE9EFED),
-                                  color: AppTokens.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 21,
-                          color: AppTokens.mutedText,
-                        ),
-                      ],
+    final studentStore = StudentDemoStore.instance;
+    return AnimatedBuilder(
+      animation: studentStore,
+      builder: (context, _) {
+        final materials = store.materials
+            .where(
+              (item) =>
+                  item.status == 'aktif' &&
+                  (_aspect == 'semua' || item.aspect == _aspect),
+            )
+            .toList();
+        final recommendation = studentStore.activeRecommendation;
+        final recommendationId = recommendation?.materialId;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            const StudentPageHeading(
+              title: 'Latihan Membaca',
+              subtitle: 'Pilih bacaan yang ingin kamu latih hari ini.',
+            ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final option in const [
+                    ('semua', 'Semua'),
+                    ('huruf', 'Huruf'),
+                    ('suku_kata', 'Suku kata'),
+                    ('kata', 'Kata'),
+                    ('kalimat', 'Kalimat'),
+                  ]) ...[
+                    if (option.$1 != 'semua') const SizedBox(width: 6),
+                    ChoiceChip(
+                      key: ValueKey('practice-filter-${option.$1}'),
+                      label: Text(option.$2),
+                      selected: _aspect == option.$1,
+                      onSelected: (_) => setState(() => _aspect = option.$1),
+                      visualDensity: VisualDensity.compact,
                     ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: AppTokens.space16),
+            if (!studentStore.hasCompleteDiagnosticBaseline)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.space12),
+                child: Text(
+                  studentStore.hasAnyDiagnostic
+                      ? 'Hasil diagnostik belum mencakup semua aspek. Minta bantuan Gurumu untuk melengkapi tes.'
+                      : 'Kerjakan tes diagnostik terlebih dahulu agar latihan yang disarankan sesuai kemampuanmu.',
+                  style: const TextStyle(
+                    color: AppTokens.mutedText,
+                    fontSize: 12,
                   ),
                 ),
               ),
-            ),
-      ],
+            if (materials.isEmpty)
+              const StudentEmptyState(
+                message: 'Belum ada latihan untuk pilihan ini. Coba pilihan lain ya!',
+              )
+            else
+              for (final material in materials)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      key: ValueKey('practice-material-${material.id}'),
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/siswa/latihan/materi',
+                        arguments: material.id,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 48,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _aspectColor(material.aspect),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Text(
+                                _aspectGlyph(material.aspect),
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  color: AppTokens.primary,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          material.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: AppTokens.text,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      if (material.id == recommendationId)
+                                        const Icon(
+                                          Icons.star_rounded,
+                                          size: 15,
+                                          color: Color(0xFFD8A42A),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${aspectLabel(material.aspect)} · Tingkat ${material.level}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppTokens.mutedText,
+                                    ),
+                                  ),
+                                  if (material.id == recommendationId &&
+                                      recommendation != null) ...[
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      recommendation.source == 'guru'
+                                          ? 'Pilihan Gurumu: ${recommendation.reason}'
+                                          : 'Disarankan: ${recommendation.reason}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppTokens.mutedText,
+                                      ),
+                                    ),
+                                  ],
+                                  finalScore(material.aspect, studentStore),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 21,
+                              color: AppTokens.mutedText,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget finalScore(String aspect, StudentDemoStore store) {
+    final score = store.practiceScores[aspect];
+    if (score == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: LinearProgressIndicator(
+          value: score / 100,
+          minHeight: 5,
+          backgroundColor: const Color(0xFFE9EFED),
+          color: AppTokens.primary,
+        ),
+      ),
     );
   }
 }
@@ -321,6 +357,8 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
   late final DemoMaterial? _material;
   late final List<DemoQuestion> _questions;
   late DateTime _startedAt;
+  late String _completionToken;
+  int? _recommendationId;
   int _questionIndex = 0;
   int _correct = 0;
   int? _selected;
@@ -343,6 +381,11 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
         .map((item) => item.copyWithIdAndStatus(item.id, item.status))
         .toList(growable: false);
     _startedAt = DateTime.now();
+    _completionToken = '${_startedAt.microsecondsSinceEpoch}-$hashCode';
+    final recommendation = StudentDemoStore.instance.activeRecommendation;
+    _recommendationId = recommendation?.materialId == _material?.id
+        ? recommendation?.id
+        : null;
   }
 
   @override
@@ -435,6 +478,10 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                     QuestionAudioButton(
                       key: ValueKey('exercise-audio-$_questionIndex'),
                       text: question.prompt,
+                      kind: questionSpeechKindForQuestion(
+                        aspect: question.aspect,
+                        questionType: question.type,
+                      ),
                     ),
                   ],
                 ),
@@ -538,6 +585,8 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
         answers: List.unmodifiable(_answers),
         startedAt: _startedAt,
         finishedAt: DateTime.now(),
+        completionToken: _completionToken,
+        recommendationId: _recommendationId,
       );
       setState(() => _finished = _attempt != null);
       return;
@@ -604,6 +653,13 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
           _answers.clear();
           _attempt = null;
           _startedAt = DateTime.now();
+          _completionToken = '${_startedAt.microsecondsSinceEpoch}-$hashCode';
+          final recommendation = StudentDemoStore.instance.activeRecommendation;
+          _recommendationId =
+              recommendation != null &&
+                  recommendation.materialId == _material.id
+              ? recommendation.id
+              : null;
           _finished = false;
         }),
         icon: const Icon(Icons.refresh_rounded),

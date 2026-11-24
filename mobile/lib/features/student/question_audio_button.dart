@@ -5,20 +5,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../core/theme/app_tokens.dart';
+import 'question_speech_config.dart';
+
+export 'question_speech_config.dart';
 
 abstract interface class QuestionSpeechEngine {
   set onStart(VoidCallback? callback);
   set onComplete(VoidCallback? callback);
   set onError(VoidCallback? callback);
 
+  QuestionSpeechVoiceInfo? get selectedVoiceInfo;
   Future<bool> supportsIndonesian();
   Future<void> configure();
-  Future<void> speak(String text);
+  Future<void> speak(
+    String text, {
+    QuestionSpeechKind kind = QuestionSpeechKind.instruction,
+  });
   Future<void> stop();
 }
 
 class FlutterTtsQuestionSpeechEngine implements QuestionSpeechEngine {
   final FlutterTts _tts = FlutterTts();
+  Map<String, String>? _preferredAndroidVoice;
+  QuestionSpeechVoiceInfo? _selectedVoiceInfo;
+
+  @override
+  QuestionSpeechVoiceInfo? get selectedVoiceInfo => _selectedVoiceInfo;
 
   @override
   set onStart(VoidCallback? callback) =>
@@ -35,12 +47,19 @@ class FlutterTtsQuestionSpeechEngine implements QuestionSpeechEngine {
   @override
   Future<bool> supportsIndonesian() async {
     try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        _preferredAndroidVoice = chooseIndonesianOfflineVoice(
+          await _indonesianAndroidVoices(),
+        );
+        return _preferredAndroidVoice != null;
+      }
       if (defaultTargetPlatform == TargetPlatform.windows) {
         final languages = await _tts.getLanguages;
         return languages is List && languages.any(_isIndonesianLocale);
       }
       return await _tts.isLanguageAvailable('id-ID') == true;
     } catch (_) {
+      if (defaultTargetPlatform == TargetPlatform.android) return false;
       try {
         final languages = await _tts.getLanguages;
         return languages is List && languages.any(_isIndonesianLocale);
@@ -58,14 +77,47 @@ class FlutterTtsQuestionSpeechEngine implements QuestionSpeechEngine {
   @override
   Future<void> configure() async {
     await _tts.setLanguage('id-ID');
-    await _tts.setSpeechRate(0.43);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final voice = _preferredAndroidVoice;
+      if (voice == null) {
+        throw StateError('No installed Indonesian voice is available.');
+      }
+      final selected = await _tts.setVoice({
+        'name': voice['name']!,
+        'locale': voice['locale']!,
+      });
+      if (selected == 0) {
+        throw StateError(
+          'The installed Indonesian voice could not be selected.',
+        );
+      }
+      _selectedVoiceInfo = QuestionSpeechVoiceInfo.fromAndroidMap(voice);
+      if (kDebugMode) {
+        String? engine;
+        try {
+          engine = (await _tts.getDefaultEngine)?.toString();
+        } catch (_) {
+          // Voice identity remains useful when the engine name is unavailable.
+        }
+        debugPrint(
+          '[BacaTepat TTS] setVoice accepted: '
+          '${_selectedVoiceInfo!.toDiagnosticString(engine: engine)}',
+        );
+      }
+    }
     await _tts.setPitch(1.0);
     await _tts.setVolume(1.0);
     await _tts.awaitSpeakCompletion(false);
   }
 
   @override
-  Future<void> speak(String text) async {
+  Future<void> speak(
+    String text, {
+    QuestionSpeechKind kind = QuestionSpeechKind.instruction,
+  }) async {
+    final profile = questionSpeechProfileFor(kind);
+    await _tts.setSpeechRate(profile.rate);
+    await _tts.setPitch(profile.pitch);
     await _tts.speak(text);
   }
 
@@ -73,13 +125,85 @@ class FlutterTtsQuestionSpeechEngine implements QuestionSpeechEngine {
   Future<void> stop() async {
     await _tts.stop();
   }
+
+  Future<List<Map<String, String>>> _indonesianAndroidVoices() async {
+    final voices = await _tts.getVoices;
+    if (voices is! List) return const [];
+    return voices
+        .whereType<Map>()
+        .map(
+          (voice) => voice.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          ),
+        )
+        .where((voice) {
+          final locale = voice['locale']?.replaceAll('_', '-').toLowerCase();
+          return locale == 'id' || (locale?.startsWith('id-') ?? false);
+        })
+        .where((voice) => voice['network_required'] == '0')
+        .where(
+          (voice) =>
+              !(voice['features']?.toLowerCase().contains('notinstalled') ??
+                  false),
+        )
+        .toList();
+  }
+}
+
+@visibleForTesting
+Map<String, String>? chooseIndonesianOfflineVoice(
+  Iterable<Map<String, String>> voices,
+) {
+  final candidates = voices.where((voice) {
+    final locale = voice['locale']?.replaceAll('_', '-').toLowerCase();
+    final features = voice['features']?.toLowerCase() ?? '';
+    final isIndonesian = locale == 'id' || (locale?.startsWith('id-') ?? false);
+    return isIndonesian &&
+        voice['network_required'] == '0' &&
+        !features.contains('notinstalled');
+  }).toList();
+  if (candidates.isEmpty) return null;
+
+  int localeRank(String? locale) =>
+      locale?.replaceAll('_', '-').toLowerCase() == 'id-id' ? 1 : 0;
+  int qualityRank(String? quality) => switch (quality?.toLowerCase()) {
+    'very high' => 4,
+    'high' => 3,
+    'normal' => 2,
+    'low' => 1,
+    _ => 0,
+  };
+  int latencyRank(String? latency) => switch (latency?.toLowerCase()) {
+    'very low' => 5,
+    'low' => 4,
+    'normal' => 3,
+    'high' => 2,
+    'very high' => 1,
+    _ => 0,
+  };
+  candidates.sort((left, right) {
+    final localeDifference =
+        localeRank(right['locale']) - localeRank(left['locale']);
+    if (localeDifference != 0) return localeDifference;
+    final latencyDifference =
+        latencyRank(right['latency']) - latencyRank(left['latency']);
+    if (latencyDifference != 0) return latencyDifference;
+    return qualityRank(right['quality']) - qualityRank(left['quality']);
+  });
+  return candidates.first;
 }
 
 class QuestionAudioButton extends StatefulWidget {
-  const QuestionAudioButton({required this.text, super.key, this.engine});
+  const QuestionAudioButton({
+    required this.text,
+    super.key,
+    this.engine,
+    this.kind = QuestionSpeechKind.instruction,
+  });
 
   final String text;
   final QuestionSpeechEngine? engine;
+  final QuestionSpeechKind kind;
 
   @override
   State<QuestionAudioButton> createState() => _QuestionAudioButtonState();
@@ -106,7 +230,9 @@ class _QuestionAudioButtonState extends State<QuestionAudioButton> {
   @override
   void didUpdateWidget(covariant QuestionAudioButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text || oldWidget.engine != widget.engine) {
+    if (oldWidget.text != widget.text ||
+        oldWidget.kind != widget.kind ||
+        oldWidget.engine != widget.engine) {
       _stop();
     }
   }
@@ -166,7 +292,7 @@ class _QuestionAudioButtonState extends State<QuestionAudioButton> {
       }
       await _engine.stop();
       if (!_isCurrent(requestId)) return;
-      await _engine.speak(_spokenText(widget.text));
+      await _engine.speak(_spokenText(widget.text), kind: widget.kind);
       if (_isCurrent(requestId)) {
         setState(() {
           _isStarting = false;

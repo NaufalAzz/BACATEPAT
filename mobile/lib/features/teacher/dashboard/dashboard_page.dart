@@ -13,22 +13,21 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
     final active = store.activeStudents;
-    final attempts = StudentDemoStore.instance.diagnosticHistoryForTeacher(
-      AppSession.teacherId ?? -1,
+    final studentStore = StudentDemoStore.instance;
+    final teacherId = AppSession.teacherId ?? -1;
+    final latestByStudent = _latestMasteryByStudent(
+      studentStore.masteryHistoryForTeacher(teacherId),
     );
-    final latestByStudent = <int, DiagnosticAttempt>{};
     final activeStudentIds = active.map((item) => item.id).toSet();
-    for (final attempt in attempts) {
-      if (!activeStudentIds.contains(attempt.studentId)) continue;
-      final current = latestByStudent[attempt.studentId];
-      if (current == null || attempt.finishedAt.isAfter(current.finishedAt)) {
-        latestByStudent[attempt.studentId] = attempt;
-      }
-    }
+    final diagnosedStudentCount = latestByStudent.keys
+        .where(activeStudentIds.contains)
+        .length;
     final diagnosticPercent = active.isEmpty
         ? 0
-        : (latestByStudent.length * 100 / active.length).round();
-    final averages = _averageScores(latestByStudent.values.toList());
+        : (diagnosedStudentCount * 100 / active.length).round();
+    final averages = _averageScores(
+      latestByStudent.values.expand((value) => value.values).toList(),
+    );
     return ListView(
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
@@ -106,7 +105,7 @@ class DashboardPage extends StatelessWidget {
                   ])
                     _AspectAverage(
                       label: aspectLabel(aspect),
-                      value: averages[aspect] ?? 0,
+                      value: averages[aspect],
                     ),
                 ],
               ),
@@ -121,7 +120,7 @@ class DashboardPage extends StatelessWidget {
               child: Column(
                 children: [
                   for (final student in store.activeStudents.where(
-                    (item) => item.needsSupport,
+                    (item) => studentStore.needsSupportForStudent(item.id),
                   ))
                     ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -130,7 +129,7 @@ class DashboardPage extends StatelessWidget {
                       ),
                       title: Text(student.name),
                       subtitle: Text(
-                        '${store.className(student.classId)} • ${masterySummaryFor(StudentDemoStore.instance.latestDiagnosticForTeacher(AppSession.teacherId ?? -1, student.id)?.aspectScores)}',
+                        '${store.className(student.classId)} • ${masterySummaryFor({for (final entry in (latestByStudent[student.id] ?? const <String, MasteryRecord>{}).entries) entry.key: entry.value.score})}',
                       ),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => Navigator.pushNamed(
@@ -139,7 +138,9 @@ class DashboardPage extends StatelessWidget {
                         arguments: student.id,
                       ),
                     ),
-                  if (!store.activeStudents.any((item) => item.needsSupport))
+                  if (!store.activeStudents.any(
+                    (item) => studentStore.needsSupportForStudent(item.id),
+                  ))
                     const EmptyState(
                       message:
                           'Tidak ada siswa yang perlu pendampingan saat ini.',
@@ -165,6 +166,49 @@ class DashboardPage extends StatelessWidget {
               ],
             );
           },
+        ),
+        const SizedBox(height: AppTokens.space16),
+        TeacherPanel(
+          title: 'Rekomendasi aktif',
+          child: Column(
+            children: [
+              for (final recommendation
+                  in studentStore.activeRecommendationsForTeacher(teacherId))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${store.studentById(recommendation.studentId)?.name ?? 'Siswa'} · ${store.materialById(recommendation.materialId)?.title ?? 'Materi tidak tersedia'}',
+                  ),
+                  subtitle: Text(
+                    '${aspectLabel(recommendation.aspect)}, tingkat ${recommendation.level} · ${recommendation.reason}',
+                  ),
+                ),
+              if (studentStore
+                  .activeRecommendationsForTeacher(teacherId)
+                  .isEmpty)
+                const EmptyState(message: 'Belum ada rekomendasi aktif.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space16),
+        TeacherPanel(
+          title: 'Materi yang perlu disiapkan',
+          child: Column(
+            children: [
+              for (final gap in studentStore.materialGapsForTeacher(teacherId))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${store.studentById(gap.studentId)?.name ?? 'Siswa'} · ${aspectLabel(gap.aspect)} tingkat ${gap.level}',
+                  ),
+                  subtitle: Text(gap.reason),
+                ),
+              if (studentStore.materialGapsForTeacher(teacherId).isEmpty)
+                const EmptyState(
+                  message: 'Tidak ada kekurangan materi saat ini.',
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: AppTokens.space24),
         TeacherPanel(
@@ -211,16 +255,28 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
-Map<String, int> _averageScores(List<DiagnosticAttempt> attempts) {
-  final result = <String, int>{};
+Map<String, int?> _averageScores(List<MasteryRecord> records) {
+  final result = <String, int?>{};
   for (final aspect in const ['huruf', 'suku_kata', 'kata', 'kalimat']) {
-    final scores = attempts
-        .map((item) => item.aspectScores[aspect])
-        .whereType<int>()
+    final scores = records
+        .where((item) => item.aspect == aspect)
+        .map((item) => item.score)
         .toList();
     result[aspect] = scores.isEmpty
-        ? 0
+        ? null
         : (scores.reduce((a, b) => a + b) / scores.length).round();
+  }
+  return result;
+}
+
+Map<int, Map<String, MasteryRecord>> _latestMasteryByStudent(
+  List<MasteryRecord> records,
+) {
+  final ordered = records.toList()
+    ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+  final result = <int, Map<String, MasteryRecord>>{};
+  for (final record in ordered) {
+    result.putIfAbsent(record.studentId, () => {})[record.aspect] = record;
   }
   return result;
 }
@@ -229,7 +285,7 @@ class _AspectAverage extends StatelessWidget {
   const _AspectAverage({required this.label, required this.value});
 
   final String label;
-  final int value;
+  final int? value;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -237,12 +293,15 @@ class _AspectAverage extends StatelessWidget {
     child: Row(
       children: [
         Expanded(child: Text(label)),
-        SizedBox(
-          width: 140,
-          child: LinearProgressIndicator(value: value / 100, minHeight: 8),
-        ),
+        if (value == null)
+          const SizedBox(width: 140, child: Text('Belum ada data'))
+        else
+          SizedBox(
+            width: 140,
+            child: LinearProgressIndicator(value: value! / 100, minHeight: 8),
+          ),
         const SizedBox(width: AppTokens.space12),
-        SizedBox(width: 40, child: Text('$value%')),
+        SizedBox(width: 60, child: Text(value == null ? '' : '$value%')),
       ],
     ),
   );

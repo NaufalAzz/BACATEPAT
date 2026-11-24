@@ -3,6 +3,123 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/student/question_audio_button.dart';
 
 void main() {
+  test('selects the best installed Indonesian offline voice', () {
+    final selected = chooseIndonesianOfflineVoice([
+      {
+        'name': 'remote-neural',
+        'locale': 'id-ID',
+        'quality': 'very high',
+        'network_required': '1',
+        'features': '',
+      },
+      {
+        'name': 'not-downloaded',
+        'locale': 'id-ID',
+        'quality': 'very high',
+        'network_required': '0',
+        'features': 'notInstalled',
+      },
+      {
+        'name': 'local-basic',
+        'locale': 'id-ID',
+        'quality': 'normal',
+        'network_required': '0',
+        'features': '',
+      },
+      {
+        'name': 'local-high-quality',
+        'locale': 'id-ID',
+        'quality': 'high',
+        'latency': 'normal',
+        'network_required': '0',
+        'features': '',
+      },
+      {
+        'name': 'local-low-latency',
+        'locale': 'id-ID',
+        'quality': 'normal',
+        'latency': 'very low',
+        'network_required': '0',
+        'features': '',
+      },
+    ]);
+
+    expect(selected?['name'], 'local-low-latency');
+    expect(
+      chooseIndonesianOfflineVoice([
+        {
+          'name': 'remote-only',
+          'locale': 'id-ID',
+          'quality': 'very high',
+          'network_required': '1',
+          'features': '',
+        },
+      ]),
+      isNull,
+    );
+    expect(
+      chooseIndonesianOfflineVoice([
+        {
+          'name': 'network-status-unknown',
+          'locale': 'id-ID',
+          'quality': 'very high',
+          'features': '',
+        },
+      ]),
+      isNull,
+    );
+  });
+
+  test('maps reading content to centrally defined speech profiles', () {
+    expect(questionSpeechKindForAspect('huruf'), QuestionSpeechKind.letter);
+    expect(
+      questionSpeechKindForAspect('suku_kata'),
+      QuestionSpeechKind.syllable,
+    );
+    expect(questionSpeechKindForAspect('kata'), QuestionSpeechKind.word);
+    expect(questionSpeechKindForAspect('kalimat'), QuestionSpeechKind.sentence);
+    expect(
+      questionSpeechKindForAspect('lainnya'),
+      QuestionSpeechKind.instruction,
+    );
+    expect(
+      questionSpeechKindForQuestion(
+        aspect: 'kata',
+        questionType: 'Pilihan ganda',
+      ),
+      QuestionSpeechKind.instruction,
+    );
+    expect(
+      questionSpeechKindForQuestion(aspect: 'kata', questionType: 'Baca lisan'),
+      QuestionSpeechKind.word,
+    );
+
+    expect(questionSpeechProfileFor(QuestionSpeechKind.letter).rate, 0.50);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.syllable).rate, 0.50);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.word).rate, 0.51);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.sentence).rate, 0.52);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.instruction).rate, 0.53);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.sentence).pitch, 1.02);
+  });
+
+  test('voice diagnostics expose selected voice metadata', () {
+    final info = QuestionSpeechVoiceInfo.fromAndroidMap({
+      'name': 'id-id-x-local',
+      'locale': 'id-ID',
+      'network_required': '0',
+      'quality': 'high',
+      'latency': 'low',
+    });
+    expect(info.name, 'id-id-x-local');
+    expect(info.locale, 'id-ID');
+    expect(info.networkRequired, isFalse);
+    expect(
+      info.toDiagnosticString(engine: 'android.tts'),
+      contains('engine=android.tts'),
+    );
+    expect(info.toDiagnosticString(), contains('networkRequired=false'));
+  });
+
   testWidgets('plays the prompt on demand, replays, and stops on second tap', (
     tester,
   ) async {
@@ -24,6 +141,7 @@ void main() {
     expect(engine.spokenTexts, [
       'Lengkapi kalimat: Ayah minum bagian yang kosong.',
     ]);
+    expect(engine.spokenKinds, [QuestionSpeechKind.instruction]);
     expect(find.text('Sedang dibacakan'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('question-audio-button')));
@@ -98,9 +216,13 @@ class _FakeQuestionSpeechEngine implements QuestionSpeechEngine {
 
   final bool indonesianAvailable;
   final List<String> spokenTexts = [];
+  final List<QuestionSpeechKind> spokenKinds = [];
   int stopCount = 0;
   VoidCallback? _onStart;
   VoidCallback? _onComplete;
+
+  @override
+  QuestionSpeechVoiceInfo? get selectedVoiceInfo => null;
 
   @override
   set onStart(VoidCallback? callback) => _onStart = callback;
@@ -118,8 +240,12 @@ class _FakeQuestionSpeechEngine implements QuestionSpeechEngine {
   Future<void> configure() async {}
 
   @override
-  Future<void> speak(String text) async {
+  Future<void> speak(
+    String text, {
+    QuestionSpeechKind kind = QuestionSpeechKind.instruction,
+  }) async {
     spokenTexts.add(text);
+    spokenKinds.add(kind);
     _onStart?.call();
   }
 

@@ -126,6 +126,10 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
               QuestionAudioButton(
                 key: ValueKey('diagnostic-audio-$_index'),
                 text: item.prompt,
+                kind: questionSpeechKindForQuestion(
+                  aspect: item.aspect,
+                  questionType: item.type,
+                ),
               ),
               const SizedBox(height: AppTokens.space8),
               const Text('Baca pilihan jawaban, lalu ketuk satu jawaban.'),

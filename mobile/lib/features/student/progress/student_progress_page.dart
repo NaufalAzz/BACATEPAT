@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../teacher/teacher_demo_store.dart';
+import '../mastery_history_chart.dart';
 import '../student_demo_store.dart';
 import '../student_widgets.dart';
 
@@ -18,10 +19,32 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
   static const _aspects = ['huruf', 'suku_kata', 'kata', 'kalimat'];
 
   @override
+  void initState() {
+    super.initState();
+    StudentDemoStore.instance.addListener(_onStoreChanged);
+  }
+
+  @override
+  void dispose() {
+    StudentDemoStore.instance.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  void _onStoreChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final store = StudentDemoStore.instance;
-    final score = store.diagnosticScores[_aspect];
+    final latestMastery = store.latestMasteryByAspect;
+    final diagnosticScores = store.diagnosticScores;
+    final diagnosticScore = diagnosticScores[_aspect];
     final history = store.activities.where((item) => item.aspect == _aspect);
+    final masteryHistory =
+        store.masteryHistory.where((item) => item.aspect == _aspect).toList()
+          ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final chartRecords = masteryHistory.reversed.toList(growable: false);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
@@ -105,7 +128,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
               for (var i = 0; i < _aspects.length; i++)
                 _LearningStep(
                   aspect: _aspects[i],
-                  score: store.diagnosticScores[_aspects[i]],
+                  mastery: latestMastery[_aspects[i]],
                   last: i == _aspects.length - 1,
                 ),
             ],
@@ -117,21 +140,35 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Hasil diagnostik per aspek',
+                'Hasil tes diagnostik',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 3),
               const Text(
-                'Skor dari tes diagnostik terakhir',
+                'Skor dari diagnostik terakhir, terpisah dari hasil latihan.',
                 style: TextStyle(fontSize: 11, color: AppTokens.mutedText),
               ),
               const SizedBox(height: 10),
-              if (store.diagnosticScores.isEmpty)
+              if (diagnosticScores.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text('Belum ada hasil tes diagnostik.'),
+                  child: Text(
+                    'Belum ada hasil diagnostik. Selesaikan tes membaca bersama Gurumu untuk melihat hasilnya.',
+                  ),
                 )
-              else ...[
+              else if (_aspects.any(
+                (aspect) => !diagnosticScores.containsKey(aspect),
+              )) ...[
+                for (final aspect in _aspects)
+                  if (diagnosticScores.containsKey(aspect))
+                    ListTile(
+                      key: ValueKey('diagnostic-score-$aspect'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(aspectLabel(aspect)),
+                      trailing: Text('${diagnosticScores[aspect]}%'),
+                    ),
+              ] else ...[
                 SizedBox(
                   height: 156,
                   width: double.infinity,
@@ -139,7 +176,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
                     key: const ValueKey('student-progress-chart'),
                     painter: _StudentChartPainter(
                       scores: _aspects
-                          .map((aspect) => store.diagnosticScores[aspect] ?? 0)
+                          .map((aspect) => diagnosticScores[aspect]!)
                           .toList(),
                       labels: const ['Huruf', 'Suku kata', 'Kata', 'Kalimat'],
                     ),
@@ -147,7 +184,9 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
                 ),
                 Center(
                   child: Text(
-                    'Skor: ${score ?? 0}% (${_status(score ?? 0)})',
+                    diagnosticScore == null
+                        ? 'Belum ada skor diagnostik untuk ${aspectLabel(_aspect)}'
+                        : '${aspectLabel(_aspect)}: $diagnosticScore% (${_statusForScore(diagnosticScore)})',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppTokens.mutedText,
@@ -156,6 +195,40 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
                   ),
                 ),
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        StudentPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Perkembangan ${aspectLabel(_aspect)}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Riwayat penguasaan dari tes diagnostik dan latihan.',
+                style: TextStyle(fontSize: 11, color: AppTokens.mutedText),
+              ),
+              const SizedBox(height: 10),
+              if (chartRecords.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('Belum ada riwayat untuk aspek ini.'),
+                )
+              else
+                MasteryHistoryChart(
+                  chartKey: const ValueKey('student-mastery-history-chart'),
+                  points: [
+                    for (final record in chartRecords)
+                      MasteryPoint(
+                        recordedAt: record.recordedAt,
+                        score: record.score,
+                      ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -188,84 +261,134 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        StudentPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Riwayat penguasaan',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              if (masteryHistory.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Belum ada perubahan penguasaan untuk aspek ini.',
+                  ),
+                )
+              else
+                for (final record in masteryHistory.take(6))
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${record.score}% · ${_status(record.status)}'),
+                    subtitle: Text(
+                      '${record.source == 'diagnostik' ? 'Tes diagnostik' : 'Latihan'} · ${_formatDate(record.recordedAt)}',
+                    ),
+                    trailing: Text('Tingkat ${record.level}'),
+                  ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  String _status(int score) => score < 60
-      ? 'Belum dikuasai'
-      : score < 80
-      ? 'Sedang berlatih'
-      : 'Dikuasai';
+  String _status(String status) => switch (status) {
+    'belum_dikuasai' => 'Belum dikuasai',
+    'sedang_berlatih' => 'Sedang berlatih',
+    'dikuasai' => 'Dikuasai',
+    _ => 'Belum dinilai',
+  };
+
+  String _statusForScore(int score) => _status(
+    score < 60
+        ? 'belum_dikuasai'
+        : score < 80
+        ? 'sedang_berlatih'
+        : 'dikuasai',
+  );
+
+  String _formatDate(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
 }
 
 class _LearningStep extends StatelessWidget {
   const _LearningStep({
     required this.aspect,
-    required this.score,
+    required this.mastery,
     required this.last,
   });
   final String aspect;
-  final int? score;
+  final MasteryRecord? mastery;
   final bool last;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 43,
-    child: Row(
-      children: [
-        SizedBox(
-          width: 22,
-          child: Column(
-            children: [
-              Container(
-                width: 17,
-                height: 17,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: (score ?? 0) >= 60 ? AppTokens.primary : Colors.white,
-                  border: Border.all(
+  Widget build(BuildContext context) {
+    final score = mastery?.score;
+    final status = mastery?.status;
+    return SizedBox(
+      height: 43,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 22,
+            child: Column(
+              children: [
+                Container(
+                  width: 17,
+                  height: 17,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
                     color: (score ?? 0) >= 60
                         ? AppTokens.primary
-                        : const Color(0xFFC8D7D2),
-                    width: 2,
+                        : Colors.white,
+                    border: Border.all(
+                      color: (score ?? 0) >= 60
+                          ? AppTokens.primary
+                          : const Color(0xFFC8D7D2),
+                      width: 2,
+                    ),
                   ),
+                  child: (score ?? 0) >= 60
+                      ? const Icon(Icons.check, size: 11, color: Colors.white)
+                      : null,
                 ),
-                child: (score ?? 0) >= 60
-                    ? const Icon(Icons.check, size: 11, color: Colors.white)
-                    : null,
-              ),
-              if (!last)
-                Expanded(
-                  child: Container(width: 2, color: const Color(0xFFD9E5E1)),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            aspectLabel(aspect),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: (score ?? 0) >= 60 ? AppTokens.text : AppTokens.mutedText,
+                if (!last)
+                  Expanded(
+                    child: Container(width: 2, color: const Color(0xFFD9E5E1)),
+                  ),
+              ],
             ),
           ),
-        ),
-        Text(
-          score == null
-              ? 'Belum dinilai'
-              : (score ?? 0) >= 80
-              ? 'Dikuasai'
-              : (score ?? 0) >= 60
-              ? 'Sedang berlatih'
-              : 'Belum dikuasai',
-          style: const TextStyle(fontSize: 10, color: AppTokens.mutedText),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              aspectLabel(aspect),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: (score ?? 0) >= 60
+                    ? AppTokens.text
+                    : AppTokens.mutedText,
+              ),
+            ),
+          ),
+          Text(
+            status == null
+                ? 'Belum dinilai'
+                : status == 'dikuasai'
+                ? 'Dikuasai'
+                : status == 'sedang_berlatih'
+                ? 'Sedang berlatih'
+                : 'Belum dikuasai',
+            style: const TextStyle(fontSize: 10, color: AppTokens.mutedText),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StudentChartPainter extends CustomPainter {

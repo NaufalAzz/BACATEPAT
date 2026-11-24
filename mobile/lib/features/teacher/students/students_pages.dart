@@ -454,6 +454,7 @@ class StudentDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
+    final learningStore = StudentDemoStore.instance;
     final teacherId = AppSession.teacherId;
     final student =
         studentId == null ||
@@ -466,134 +467,200 @@ class StudentDetailPage extends StatelessWidget {
         body: EmptyState(message: 'Data siswa tidak ditemukan.'),
       );
     }
-    return ListView(
-      padding: const EdgeInsets.all(AppTokens.space16),
-      children: [
-        TeacherPageHeading(
-          title: student.name,
-          subtitle:
-              'Kelas ${store.className(student.classId)} • @${student.username}',
-        ),
-        TeacherPanel(
-          title: 'Informasi siswa',
-          child: Wrap(
-            spacing: AppTokens.space12,
-            runSpacing: AppTokens.space12,
-            children: [
-              StatusBadge(
-                label: student.active ? 'Aktif' : 'Nonaktif',
-                good: student.active,
+    final authorizedTeacherId = teacherId!;
+    return AnimatedBuilder(
+      animation: learningStore,
+      builder: (context, _) {
+        final latestMastery = learningStore.latestMasteryForTeacher(
+          authorizedTeacherId,
+          student.id,
+        );
+        final recommendation = learningStore.activeRecommendationForTeacher(
+          authorizedTeacherId,
+          student.id,
+        );
+        final materialGaps = learningStore.materialGapsForStudentTeacher(
+          authorizedTeacherId,
+          student.id,
+        );
+        return ListView(
+          padding: const EdgeInsets.all(AppTokens.space16),
+          children: [
+            TeacherPageHeading(
+              title: student.name,
+              subtitle:
+                  'Kelas ${store.className(student.classId)} • @${student.username}',
+            ),
+            TeacherPanel(
+              title: 'Informasi siswa',
+              child: Wrap(
+                spacing: AppTokens.space12,
+                runSpacing: AppTokens.space12,
+                children: [
+                  StatusBadge(
+                    label: student.active ? 'Aktif' : 'Nonaktif',
+                    good: student.active,
+                  ),
+                  StatusBadge(
+                    label: student.parentConsent
+                        ? 'Persetujuan rekaman: ya'
+                        : 'Persetujuan rekaman: belum',
+                    good: student.parentConsent,
+                  ),
+                  StatusBadge(
+                    label: student.aiConsent
+                        ? 'Persetujuan AI: ya'
+                        : 'Persetujuan AI: tidak',
+                    good: student.aiConsent,
+                  ),
+                ],
               ),
-              StatusBadge(
-                label: student.parentConsent
-                    ? 'Persetujuan rekaman: ya'
-                    : 'Persetujuan rekaman: belum',
-                good: student.parentConsent,
+            ),
+            const SizedBox(height: AppTokens.space16),
+            TeacherPanel(
+              title: 'Penguasaan membaca',
+              child: latestMastery.isEmpty
+                  ? const EmptyState(
+                      message: 'Belum ada catatan penguasaan dari diagnostik lengkap.',
+                    )
+                  : Column(
+                      children: [
+                        for (final aspect in const [
+                          'huruf',
+                          'suku_kata',
+                          'kata',
+                          'kalimat',
+                        ])
+                          if (latestMastery[aspect] case final record?)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(aspectLabel(record.aspect)),
+                              subtitle: Text(
+                                '${record.score}% · Tingkat ${record.level} · ${record.source == 'diagnostik' ? 'Diagnostik' : 'Latihan'}',
+                              ),
+                              trailing: Text(
+                                _masteryStatusLabel(record.status),
+                              ),
+                            ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: AppTokens.space16),
+            TeacherPanel(
+              title: 'Hasil diagnostik',
+              child:
+                  StudentDemoStore.instance.latestDiagnosticForTeacher(
+                        authorizedTeacherId,
+                        student.id,
+                      ) ==
+                      null
+                  ? const EmptyState(
+                      message: 'Belum ada hasil diagnostik untuk siswa ini.',
+                    )
+                  : Column(
+                      children: [
+                        for (final entry
+                            in StudentDemoStore.instance
+                                .latestDiagnosticForTeacher(
+                                  teacherId,
+                                  student.id,
+                                )!
+                                .aspectScores
+                                .entries)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(aspectLabel(entry.key)),
+                            subtitle: LinearProgressIndicator(
+                              value: entry.value / 100,
+                              minHeight: 7,
+                            ),
+                            trailing: Text(
+                              '${entry.value}%\n${masteryLabel(entry.value)}',
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: AppTokens.space16),
+            TeacherPanel(
+              title: 'Rekomendasi dan pendampingan',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ringkasan: ${masterySummaryFor({for (final entry in latestMastery.entries) entry.key: entry.value.score})}',
+                  ),
+                  const SizedBox(height: AppTokens.space8),
+                  Text(
+                    recommendation == null
+                        ? 'Rekomendasi aktif: Belum ada'
+                        : 'Rekomendasi aktif: ${store.materialById(recommendation.materialId)?.title ?? 'Materi tidak tersedia'}',
+                  ),
+                  if (recommendation != null)
+                    Text(
+                      '${recommendation.source == 'guru' ? 'Dari Guru' : 'Dari sistem'} · ${recommendation.reason}',
+                    ),
+                  for (final gap in materialGaps)
+                    Text(
+                      'Materi perlu disiapkan: ${aspectLabel(gap.aspect)} tingkat ${gap.level}. ${gap.reason}',
+                    ),
+                  const SizedBox(height: AppTokens.space12),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Perlu pendampingan'),
+                    value: learningStore.needsSupportForStudent(student.id),
+                    onChanged: (value) =>
+                        learningStore.setTeacherSupportFlag(student.id, value),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _chooseRecommendation(context, student.id),
+                    icon: const Icon(Icons.swap_horiz_rounded),
+                    label: const Text('Ganti rekomendasi latihan'),
+                  ),
+                ],
               ),
-              StatusBadge(
-                label: student.aiConsent
-                    ? 'Persetujuan AI: ya'
-                    : 'Persetujuan AI: tidak',
-                good: student.aiConsent,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        TeacherPanel(
-          title: 'Hasil diagnostik',
-          child:
-              StudentDemoStore.instance.latestDiagnosticForTeacher(
-                    teacherId!,
-                    student.id,
-                  ) ==
-                  null
-              ? const EmptyState(
-                  message: 'Belum ada hasil diagnostik untuk siswa ini.',
-                )
-              : Column(
-                  children: [
-                    for (final entry
-                        in StudentDemoStore.instance
-                            .latestDiagnosticForTeacher(teacherId, student.id)!
-                            .aspectScores
-                            .entries)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(aspectLabel(entry.key)),
-                        subtitle: LinearProgressIndicator(
-                          value: entry.value / 100,
-                          minHeight: 7,
-                        ),
-                        trailing: Text(
-                          '${entry.value}%\n${masteryLabel(entry.value)}',
-                          textAlign: TextAlign.right,
-                        ),
+            ),
+            const SizedBox(height: AppTokens.space16),
+            TeacherPanel(
+              title: 'Rekaman dan evaluasi',
+              child: Column(
+                children: [
+                  for (final recording in store.recordings.where(
+                    (item) => item.studentId == student.id,
+                  ))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.mic_none_rounded),
+                      title: Text(
+                        '${aspectLabel(recording.aspect)} • ${recording.targetText}',
                       ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        TeacherPanel(
-          title: 'Rekomendasi dan pendampingan',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Ringkasan: ${masterySummaryFor(StudentDemoStore.instance.latestDiagnosticForTeacher(teacherId, student.id)?.aspectScores)}',
+                      subtitle: Text(
+                        recording.status == 'dievaluasi'
+                            ? 'Ketepatan ${recording.accuracyScore}% • Kelancaran ${recording.fluencyScore}%'
+                            : 'Menunggu evaluasi',
+                      ),
+                    ),
+                  if (!store.recordings.any(
+                    (item) => item.studentId == student.id,
+                  ))
+                    const EmptyState(message: 'Belum ada aktivitas rekaman.'),
+                ],
               ),
-              const SizedBox(height: AppTokens.space8),
-              Text(
-                'Rekomendasi aktif: ${store.materialById(store.recommendationFor(student.id) ?? -1)?.title ?? 'Belum ada'}',
-              ),
-              const SizedBox(height: AppTokens.space12),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Perlu pendampingan'),
-                value: student.needsSupport,
-                onChanged: (_) => store.toggleStudentSupport(student.id),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _chooseRecommendation(context, student.id),
-                icon: const Icon(Icons.swap_horiz_rounded),
-                label: const Text('Ganti rekomendasi latihan'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        TeacherPanel(
-          title: 'Rekaman dan evaluasi',
-          child: Column(
-            children: [
-              for (final recording in store.recordings.where(
-                (item) => item.studentId == student.id,
-              ))
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.mic_none_rounded),
-                  title: Text(
-                    '${aspectLabel(recording.aspect)} • ${recording.targetText}',
-                  ),
-                  subtitle: Text(
-                    recording.status == 'dievaluasi'
-                        ? 'Ketepatan ${recording.accuracyScore}% • Kelancaran ${recording.fluencyScore}%'
-                        : 'Menunggu evaluasi',
-                  ),
-                ),
-              if (!store.recordings.any((item) => item.studentId == student.id))
-                const EmptyState(message: 'Belum ada aktivitas rekaman.'),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
-  void _chooseRecommendation(BuildContext context, int studentId) {
+  Future<void> _chooseRecommendation(
+    BuildContext context,
+    int studentId,
+  ) async {
     final store = TeacherDemoStore.instance;
     final pageContext = context;
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
@@ -602,21 +669,63 @@ class StudentDetailPage extends StatelessWidget {
           children: [
             const ListTile(title: Text('Pilih materi rekomendasi')),
             for (final item in store.materials.where(
-              (item) => item.status == 'aktif',
+              (item) =>
+                  item.status == 'aktif' &&
+                  store.practiceQuestionsForMaterial(item.id).isNotEmpty,
             ))
               ListTile(
                 title: Text(item.title),
                 subtitle: Text(
                   '${aspectLabel(item.aspect)} • tingkat ${item.level}',
                 ),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(sheetContext);
-                  store.setRecommendation(studentId, item.id);
-                  ScaffoldMessenger.of(pageContext).showSnackBar(
-                    SnackBar(
-                      content: Text('Rekomendasi diperbarui: ${item.title}'),
-                    ),
-                  );
+                  final controller = TextEditingController();
+                  try {
+                    final reason = await showDialog<String>(
+                      context: pageContext,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Alasan perubahan'),
+                        content: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Alasan rekomendasi',
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Batal'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(
+                              dialogContext,
+                              controller.text.trim(),
+                            ),
+                            child: const Text('Simpan'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (reason == null || !pageContext.mounted) return;
+                    final saved = StudentDemoStore.instance
+                        .setTeacherRecommendation(
+                          studentId: studentId,
+                          materialId: item.id,
+                          reason: reason,
+                        );
+                    ScaffoldMessenger.of(pageContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          saved ? 'Rekomendasi diperbarui: ${item.title}' : 'Isi alasan dan pastikan materi dapat digunakan.',
+                        ),
+                      ),
+                    );
+                  } finally {
+                    controller.dispose();
+                  }
                 },
               ),
           ],
@@ -625,3 +734,9 @@ class StudentDetailPage extends StatelessWidget {
     );
   }
 }
+
+String _masteryStatusLabel(String status) => switch (status) {
+  'dikuasai' => 'Dikuasai',
+  'sedang_berlatih' => 'Sedang dilatih',
+  _ => 'Belum dikuasai',
+};

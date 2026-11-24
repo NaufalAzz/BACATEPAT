@@ -2,7 +2,127 @@ import 'package:flutter/foundation.dart';
 
 import '../../app/app_session.dart';
 import '../../app/navigation_plan.dart';
+import 'adaptive_learning_service.dart';
 import '../teacher/teacher_demo_store.dart';
+
+class MasteryRecord {
+  const MasteryRecord({
+    required this.id,
+    required this.studentId,
+    required this.classId,
+    required this.aspect,
+    required this.level,
+    this.recommendedAspect,
+    this.recommendedLevel,
+    required this.status,
+    required this.score,
+    required this.source,
+    required this.sourceId,
+    required this.recordedAt,
+    required this.reason,
+    this.needsSupport = false,
+  });
+
+  final int id;
+  final int studentId;
+  final int classId;
+  final String aspect;
+
+  /// The level of the completed activity (or diagnostic placement).
+  final int level;
+
+  /// The next target selected after processing this result, when one exists.
+  final String? recommendedAspect;
+  final int? recommendedLevel;
+  final String status;
+  final int score;
+  final String source;
+  final int sourceId;
+  final DateTime recordedAt;
+  final String reason;
+  final bool needsSupport;
+}
+
+class LearningRecommendation {
+  const LearningRecommendation({
+    required this.id,
+    required this.studentId,
+    required this.classId,
+    required this.aspect,
+    required this.level,
+    required this.materialId,
+    required this.source,
+    required this.reason,
+    required this.createdAt,
+    this.status = 'aktif',
+    this.teacherId,
+    this.completedByAttemptId,
+  });
+
+  final int id;
+  final int studentId;
+  final int classId;
+  final String aspect;
+  final int level;
+  final int materialId;
+  final String source;
+  final String reason;
+  final DateTime createdAt;
+  final String status;
+  final int? teacherId;
+  final int? completedByAttemptId;
+
+  LearningRecommendation copyWith({
+    String? status,
+    int? completedByAttemptId,
+  }) => LearningRecommendation(
+    id: id,
+    studentId: studentId,
+    classId: classId,
+    aspect: aspect,
+    level: level,
+    materialId: materialId,
+    source: source,
+    reason: reason,
+    createdAt: createdAt,
+    status: status ?? this.status,
+    teacherId: teacherId,
+    completedByAttemptId: completedByAttemptId ?? this.completedByAttemptId,
+  );
+}
+
+class MaterialGapRecord {
+  const MaterialGapRecord({
+    required this.id,
+    required this.studentId,
+    required this.classId,
+    required this.aspect,
+    required this.level,
+    required this.createdAt,
+    required this.reason,
+    this.resolvedAt,
+  });
+
+  final int id;
+  final int studentId;
+  final int classId;
+  final String aspect;
+  final int level;
+  final DateTime createdAt;
+  final String reason;
+  final DateTime? resolvedAt;
+
+  MaterialGapRecord copyWith({DateTime? resolvedAt}) => MaterialGapRecord(
+    id: id,
+    studentId: studentId,
+    classId: classId,
+    aspect: aspect,
+    level: level,
+    createdAt: createdAt,
+    reason: reason,
+    resolvedAt: resolvedAt ?? this.resolvedAt,
+  );
+}
 
 class StudentActivity {
   StudentActivity({
@@ -39,6 +159,8 @@ class PracticeAttempt {
     required this.studentId,
     required this.classId,
     required this.materialId,
+    required this.level,
+    this.recommendationId,
     required this.title,
     required this.aspect,
     required this.availableQuestionCount,
@@ -47,6 +169,7 @@ class PracticeAttempt {
     required this.score,
     required this.startedAt,
     required this.finishedAt,
+    required this.completionToken,
     this.status = 'selesai',
   }) : questionSnapshots = List.unmodifiable(
          questionSnapshots.map((q) => q.copyWithIdAndStatus(q.id, q.status)),
@@ -57,6 +180,8 @@ class PracticeAttempt {
   final int studentId;
   final int classId;
   final int materialId;
+  final int level;
+  final int? recommendationId;
   final String title;
   final String aspect;
   final int availableQuestionCount;
@@ -65,6 +190,7 @@ class PracticeAttempt {
   final int score;
   final DateTime startedAt;
   final DateTime finishedAt;
+  final String completionToken;
   final String status;
   int get answeredQuestionCount => answers.length;
   int get correctCount => answers.where((answer) => answer.isCorrect).length;
@@ -135,10 +261,21 @@ class StudentDemoStore extends ChangeNotifier {
 
   final _practiceHistory = <PracticeAttempt>[];
   final _diagnosticHistory = <DiagnosticAttempt>[];
+  final _masteryHistory = <MasteryRecord>[];
+  final _recommendationHistory = <LearningRecommendation>[];
+  final _materialGapHistory = <MaterialGapRecord>[];
+  final _processedDiagnosticIds = <int>{};
+  final _processedPracticeIds = <int>{};
+  final _dismissedSupportRecordIds = <int>{};
+  final _practiceByCompletionToken = <String, PracticeAttempt>{};
   final _largerTextByStudent = <int, bool>{};
   final _recordingPreviewByStudent = <int, bool>{};
   int _practiceAttemptId = 1;
   int _diagnosticAttemptId = 1;
+  int _masteryRecordId = 1;
+  int _recommendationId = 1;
+  int _materialGapId = 1;
+  static const _adaptiveService = AdaptiveLearningService();
 
   int? get currentStudentId {
     if (AppSession.role != AppRole.student || AppSession.studentId == null) {
@@ -188,6 +325,82 @@ class StudentDemoStore extends ChangeNotifier {
   List<DiagnosticAttempt> get diagnosticHistory => _diagnosticHistory
       .where((a) => a.studentId == currentStudentId)
       .toList(growable: false);
+  List<MasteryRecord> get allMasteryHistory =>
+      List.unmodifiable(_masteryHistory);
+  List<MasteryRecord> get masteryHistory => _masteryHistory
+      .where((record) => record.studentId == currentStudentId)
+      .toList(growable: false);
+  List<LearningRecommendation> get allRecommendationHistory =>
+      List.unmodifiable(_recommendationHistory);
+  List<LearningRecommendation> get recommendationHistory =>
+      _recommendationHistory
+          .where((record) => record.studentId == currentStudentId)
+          .toList(growable: false);
+  List<MaterialGapRecord> get allMaterialGapHistory =>
+      List.unmodifiable(_materialGapHistory);
+  List<MaterialGapRecord> get materialGaps => _materialGapHistory
+      .where((record) => record.studentId == currentStudentId)
+      .toList(growable: false);
+  List<MasteryRecord> masteryHistoryForTeacher(int teacherId) => _masteryHistory
+      .where(
+        (record) => TeacherDemoStore.instance.canTeacherAccessClass(
+          teacherId,
+          record.classId,
+        ),
+      )
+      .toList(growable: false);
+  List<LearningRecommendation> recommendationHistoryForTeacher(int teacherId) =>
+      _recommendationHistory
+          .where(
+            (record) => TeacherDemoStore.instance.canTeacherAccessClass(
+              teacherId,
+              record.classId,
+            ),
+          )
+          .toList(growable: false);
+  List<MaterialGapRecord> materialGapsForTeacher(int teacherId) =>
+      _materialGapHistory
+          .where(
+            (record) => TeacherDemoStore.instance.canTeacherAccessClass(
+              teacherId,
+              record.classId,
+            ),
+          )
+          .where((record) => record.resolvedAt == null)
+          .toList(growable: false);
+  Map<String, MasteryRecord> get latestMasteryByAspect {
+    final records = masteryHistory.toList()
+      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+    return Map.unmodifiable({
+      for (final record in records) record.aspect: record,
+    });
+  }
+
+  Map<String, int> get masteryScores => Map.unmodifiable({
+    for (final entry in latestMasteryByAspect.entries)
+      entry.key: entry.value.score,
+  });
+  LearningRecommendation? get activeRecommendation {
+    final records = recommendationHistory.where(
+      (item) => item.status == 'aktif',
+    );
+    return records.isEmpty ? null : records.last;
+  }
+
+  List<MasteryRecord> masteryHistoryForStudent(int studentId) => _masteryHistory
+      .where((record) => record.studentId == studentId)
+      .toList(growable: false);
+  List<LearningRecommendation> recommendationHistoryForStudent(int studentId) =>
+      _recommendationHistory
+          .where((record) => record.studentId == studentId)
+          .toList(growable: false);
+  List<MaterialGapRecord> materialGapsForStudent(int studentId) =>
+      _materialGapHistory
+          .where(
+            (record) =>
+                record.studentId == studentId && record.resolvedAt == null,
+          )
+          .toList(growable: false);
   List<StudentActivity> get activities => practiceHistory
       .map(
         (attempt) => StudentActivity(
@@ -228,9 +441,20 @@ class StudentDemoStore extends ChangeNotifier {
   String? get lastPracticeAspect =>
       practiceHistory.isEmpty ? null : practiceHistory.first.aspect;
   bool get largerText => _largerTextByStudent[currentStudentId] ?? false;
-  int? get recommendedMaterialId => currentStudentId == null
-      ? null
-      : TeacherDemoStore.instance.recommendationFor(currentStudentId!);
+  int? get recommendedMaterialId => activeRecommendation?.materialId;
+
+  bool get hasCompleteDiagnosticBaseline =>
+      currentStudentId != null &&
+      _diagnosticHistory.any(
+        (attempt) =>
+            attempt.studentId == currentStudentId &&
+            attempt.status == 'selesai' &&
+            AdaptiveLearningService.aspects.every(
+              attempt.aspectScores.containsKey,
+            ),
+      );
+
+  bool get hasAnyDiagnostic => diagnosticHistory.isNotEmpty;
 
   DiagnosticAttempt? attemptForDiagnostic(int studentId, int diagnosticId) {
     for (final attempt in _diagnosticHistory) {
@@ -341,7 +565,7 @@ class StudentDemoStore extends ChangeNotifier {
     }
     final aspectScores = {
       for (final aspect in totals.keys)
-        aspect: (correct[aspect]! * 100 / totals[aspect]!).round(),
+        aspect: ((correct[aspect] ?? 0) * 100 / totals[aspect]!).round(),
     };
     final score =
         (recordedAnswers.where((a) => a.isCorrect).length *
@@ -362,6 +586,7 @@ class StudentDemoStore extends ChangeNotifier {
       finishedAt: finishedAt,
     );
     _diagnosticHistory.insert(0, attempt);
+    _processDiagnostic(attempt);
     notifyListeners();
     return attempt;
   }
@@ -375,12 +600,15 @@ class StudentDemoStore extends ChangeNotifier {
     required List<PracticeAnswerRecord> answers,
     required DateTime startedAt,
     required DateTime finishedAt,
+    String? completionToken,
+    int? recommendationId,
   }) {
     final studentId = currentStudentId;
     final profile = studentId == null
         ? null
         : TeacherDemoStore.instance.studentById(studentId);
     final material = TeacherDemoStore.instance.materialById(materialId);
+    final normalizedToken = completionToken?.trim();
     if (profile == null ||
         !profile.active ||
         material == null ||
@@ -388,8 +616,25 @@ class StudentDemoStore extends ChangeNotifier {
         material.aspect != aspect ||
         answers.isEmpty ||
         answers.length != questionSnapshots.length ||
-        availableQuestionCount != questionSnapshots.length) {
+        availableQuestionCount != questionSnapshots.length ||
+        normalizedToken == null ||
+        normalizedToken.isEmpty) {
       return null;
+    }
+    final tokenKey = '$studentId:$normalizedToken';
+    final existing = _practiceByCompletionToken[tokenKey];
+    if (existing != null) {
+      return _samePracticeSubmission(
+            existing,
+            materialId: materialId,
+            aspect: aspect,
+            questionSnapshots: questionSnapshots,
+            answers: answers,
+            startedAt: startedAt,
+            recommendationId: recommendationId,
+          )
+          ? existing
+          : null;
     }
     final snapshotsById = {for (final q in questionSnapshots) q.id: q};
     if (snapshotsById.length != questionSnapshots.length ||
@@ -421,6 +666,8 @@ class StudentDemoStore extends ChangeNotifier {
       studentId: studentId!,
       classId: profile.classId,
       materialId: materialId,
+      level: material.level,
+      recommendationId: recommendationId,
       title: title,
       aspect: aspect,
       availableQuestionCount: availableQuestionCount,
@@ -429,11 +676,478 @@ class StudentDemoStore extends ChangeNotifier {
       score: score,
       startedAt: startedAt,
       finishedAt: finishedAt,
+      completionToken: normalizedToken,
     );
     _practiceHistory.insert(0, attempt);
+    _practiceByCompletionToken[tokenKey] = attempt;
+    _processPractice(attempt);
     notifyListeners();
     return attempt;
   }
+
+  bool _samePracticeSubmission(
+    PracticeAttempt existing, {
+    required int materialId,
+    required String aspect,
+    required List<DemoQuestion> questionSnapshots,
+    required List<PracticeAnswerRecord> answers,
+    required DateTime startedAt,
+    required int? recommendationId,
+  }) {
+    if (existing.status != 'selesai' ||
+        existing.materialId != materialId ||
+        existing.aspect != aspect ||
+        existing.startedAt != startedAt ||
+        existing.recommendationId != recommendationId ||
+        existing.questionSnapshots.length != questionSnapshots.length ||
+        existing.answers.length != answers.length) {
+      return false;
+    }
+    for (var index = 0; index < questionSnapshots.length; index++) {
+      if (existing.questionSnapshots[index].id != questionSnapshots[index].id ||
+          existing.answers[index].questionId != answers[index].questionId ||
+          existing.answers[index].answer != answers[index].answer ||
+          existing.answers[index].correctAnswer !=
+              answers[index].correctAnswer ||
+          existing.answers[index].isCorrect != answers[index].isCorrect) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _processDiagnostic(DiagnosticAttempt attempt) {
+    if (!_processedDiagnosticIds.add(attempt.id) ||
+        attempt.status != 'selesai' ||
+        !AdaptiveLearningService.aspects.every(
+          attempt.aspectScores.containsKey,
+        )) {
+      return;
+    }
+    for (final aspect in AdaptiveLearningService.aspects) {
+      final score = attempt.aspectScores[aspect]!;
+      final level = score < AdaptiveLearningService.practiceThreshold
+          ? 1
+          : score < AdaptiveLearningService.masteryThreshold
+          ? 2
+          : 3;
+      final status = score < AdaptiveLearningService.practiceThreshold
+          ? 'belum_dikuasai'
+          : score < AdaptiveLearningService.masteryThreshold
+          ? 'sedang_berlatih'
+          : 'dikuasai';
+      _masteryHistory.add(
+        MasteryRecord(
+          id: _masteryRecordId++,
+          studentId: attempt.studentId,
+          classId: attempt.classId,
+          aspect: aspect,
+          level: level,
+          status: status,
+          score: score,
+          source: 'diagnostik',
+          sourceId: attempt.id,
+          recordedAt: attempt.finishedAt,
+          reason: 'Penguasaan awal dari hasil diagnostik.',
+        ),
+      );
+    }
+    if (_activeRecommendationFor(attempt.studentId)?.source == 'guru') return;
+    final decision = _adaptiveService.fromDiagnostic(
+      scores: attempt.aspectScores,
+      materials: _adaptiveMaterials,
+      attemptedMaterialIds: _attemptedMaterialIds(attempt.studentId),
+    );
+    if (decision == null) {
+      _closeActiveRecommendation(attempt.studentId);
+      _resolveMaterialGaps(attempt.studentId, force: true);
+      return;
+    }
+    _applySystemDecision(
+      studentId: attempt.studentId,
+      classId: attempt.classId,
+      decision: decision,
+      createdAt: attempt.finishedAt,
+    );
+  }
+
+  void _processPractice(PracticeAttempt attempt) {
+    if (!_processedPracticeIds.add(attempt.id) ||
+        attempt.status != 'selesai' ||
+        !_hasCompleteDiagnosticFor(attempt.studentId)) {
+      return;
+    }
+    final active = _activeRecommendationFor(attempt.studentId);
+    final completesActiveRecommendation =
+        active != null &&
+        active.id == attempt.recommendationId &&
+        active.materialId == attempt.materialId;
+    final teacherOverridePending =
+        active?.source == 'guru' && !completesActiveRecommendation;
+    if (completesActiveRecommendation) {
+      _closeActiveRecommendation(
+        attempt.studentId,
+        completedByAttemptId: attempt.id,
+      );
+    }
+
+    final previous = _practiceHistory
+        .where(
+          (item) =>
+              item.studentId == attempt.studentId &&
+              item.id != attempt.id &&
+              item.status == 'selesai',
+        )
+        .map(
+          (item) => AdaptivePracticeResult(
+            studentId: item.studentId,
+            aspect: item.aspect,
+            level: item.level,
+            materialId: item.materialId,
+            score: item.score,
+            finishedAt: item.finishedAt,
+          ),
+        )
+        .toList();
+    final latestMastery = _latestMasteryForStudent(attempt.studentId);
+    final statusByAspect = {
+      for (final entry in latestMastery.entries) entry.key: entry.value.status,
+    };
+    final levelByAspect = {
+      for (final entry in latestMastery.entries) entry.key: entry.value.level,
+    };
+    final previousScores = {
+      for (final entry in latestMastery.entries) entry.key: entry.value.score,
+    };
+    // The completed current attempt is already in the history at this point.
+    final sameMaterialCount = _practiceHistory
+        .where(
+          (item) =>
+              item.studentId == attempt.studentId &&
+              item.materialId == attempt.materialId &&
+              item.status == 'selesai',
+        )
+        .length;
+    final decision = _adaptiveService.fromPractice(
+      current: AdaptivePracticeResult(
+        studentId: attempt.studentId,
+        aspect: attempt.aspect,
+        level: attempt.level,
+        materialId: attempt.materialId,
+        score: attempt.score,
+        finishedAt: attempt.finishedAt,
+      ),
+      previous: previous,
+      masteryStatuses: statusByAspect,
+      masteryLevels: levelByAspect,
+      previousAspectScores: previousScores,
+      materials: _adaptiveMaterials,
+      attemptedMaterialIds: _attemptedMaterialIds(attempt.studentId),
+      sameMaterialAttemptCount: sameMaterialCount,
+    );
+    _masteryHistory.add(
+      MasteryRecord(
+        id: _masteryRecordId++,
+        studentId: attempt.studentId,
+        classId: attempt.classId,
+        aspect: attempt.aspect,
+        level: attempt.level,
+        recommendedAspect: decision.materialId == null ? null : decision.aspect,
+        recommendedLevel: decision.materialId == null ? null : decision.level,
+        status: decision.masteryStatus,
+        score: attempt.score,
+        source: 'latihan',
+        sourceId: attempt.id,
+        recordedAt: attempt.finishedAt,
+        reason: decision.reason,
+        needsSupport: decision.needsSupport,
+      ),
+    );
+
+    if (teacherOverridePending) return;
+    if (decision.materialMissing) {
+      _closeActiveRecommendation(attempt.studentId);
+      _recordMaterialGap(
+        studentId: attempt.studentId,
+        classId: attempt.classId,
+        aspect: decision.aspect,
+        level: decision.level,
+        reason: decision.reason.contains('tiga kali')
+            ? 'Belum ada materi alternatif aktif pada aspek dan tingkat ini setelah tiga percobaan.'
+            : 'Belum ada materi dan soal latihan aktif yang sesuai.',
+        createdAt: attempt.finishedAt,
+      );
+    } else if (decision.materialId != null) {
+      _applySystemDecision(
+        studentId: attempt.studentId,
+        classId: attempt.classId,
+        decision: decision,
+        createdAt: attempt.finishedAt,
+      );
+    } else {
+      _closeActiveRecommendation(attempt.studentId);
+      _resolveMaterialGaps(attempt.studentId, force: true);
+    }
+  }
+
+  List<AdaptiveMaterial> get _adaptiveMaterials => TeacherDemoStore
+      .instance
+      .materials
+      .where(
+        (material) =>
+            material.status == 'aktif' &&
+            TeacherDemoStore.instance
+                .practiceQuestionsForMaterial(material.id)
+                .isNotEmpty,
+      )
+      .map(
+        (material) => AdaptiveMaterial(
+          id: material.id,
+          aspect: material.aspect,
+          level: material.level,
+          title: material.title,
+        ),
+      )
+      .toList(growable: false);
+
+  Set<int> _attemptedMaterialIds(int studentId) => _practiceHistory
+      .where((attempt) => attempt.studentId == studentId)
+      .map((attempt) => attempt.materialId)
+      .toSet();
+
+  bool _hasCompleteDiagnosticFor(int studentId) => _diagnosticHistory.any(
+    (attempt) =>
+        attempt.studentId == studentId &&
+        attempt.status == 'selesai' &&
+        AdaptiveLearningService.aspects.every(attempt.aspectScores.containsKey),
+  );
+
+  Map<String, MasteryRecord> _latestMasteryForStudent(int studentId) {
+    final records =
+        _masteryHistory
+            .where((record) => record.studentId == studentId)
+            .toList()
+          ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+    return {for (final record in records) record.aspect: record};
+  }
+
+  LearningRecommendation? _activeRecommendationFor(int studentId) {
+    for (final recommendation in _recommendationHistory.reversed) {
+      if (recommendation.studentId == studentId &&
+          recommendation.status == 'aktif') {
+        return recommendation;
+      }
+    }
+    return null;
+  }
+
+  void _closeActiveRecommendation(int studentId, {int? completedByAttemptId}) {
+    final index = _recommendationHistory.lastIndexWhere(
+      (item) => item.studentId == studentId && item.status == 'aktif',
+    );
+    if (index >= 0) {
+      _recommendationHistory[index] = _recommendationHistory[index].copyWith(
+        status: 'selesai',
+        completedByAttemptId: completedByAttemptId,
+      );
+    }
+  }
+
+  void _applySystemDecision({
+    required int studentId,
+    required int classId,
+    required AdaptiveDecision decision,
+    required DateTime createdAt,
+  }) {
+    _closeActiveRecommendation(studentId);
+    if (decision.materialMissing || decision.materialId == null) {
+      _recordMaterialGap(
+        studentId: studentId,
+        classId: classId,
+        aspect: decision.aspect,
+        level: decision.level,
+        reason: 'Belum ada materi dan soal latihan aktif yang sesuai.',
+        createdAt: createdAt,
+      );
+      return;
+    }
+    _resolveMaterialGaps(studentId, aspect: decision.aspect);
+    _recommendationHistory.add(
+      LearningRecommendation(
+        id: _recommendationId++,
+        studentId: studentId,
+        classId: classId,
+        aspect: decision.aspect,
+        level: decision.level,
+        materialId: decision.materialId!,
+        source: 'sistem',
+        reason: decision.reason,
+        createdAt: createdAt,
+      ),
+    );
+  }
+
+  void _recordMaterialGap({
+    required int studentId,
+    required int classId,
+    required String aspect,
+    required int level,
+    required String reason,
+    required DateTime createdAt,
+  }) {
+    final alreadyOpen = _materialGapHistory.any(
+      (item) =>
+          item.studentId == studentId &&
+          item.aspect == aspect &&
+          item.level == level &&
+          item.resolvedAt == null,
+    );
+    if (alreadyOpen) return;
+    _materialGapHistory.add(
+      MaterialGapRecord(
+        id: _materialGapId++,
+        studentId: studentId,
+        classId: classId,
+        aspect: aspect,
+        level: level,
+        createdAt: createdAt,
+        reason: reason,
+      ),
+    );
+  }
+
+  void _resolveMaterialGaps(
+    int studentId, {
+    String? aspect,
+    bool force = false,
+  }) {
+    final now = DateTime.now();
+    for (var index = 0; index < _materialGapHistory.length; index++) {
+      final item = _materialGapHistory[index];
+      if (item.studentId == studentId &&
+          item.resolvedAt == null &&
+          (aspect == null || item.aspect == aspect) &&
+          (force ||
+              _adaptiveMaterials.any(
+                (material) =>
+                    material.aspect == item.aspect &&
+                    material.level == item.level,
+              ))) {
+        _materialGapHistory[index] = item.copyWith(resolvedAt: now);
+      }
+    }
+  }
+
+  bool setTeacherRecommendation({
+    required int studentId,
+    required int materialId,
+    required String reason,
+  }) {
+    final teacherId = AppSession.teacherId;
+    if (AppSession.role != AppRole.teacher ||
+        teacherId == null ||
+        !TeacherDemoStore.instance.canTeacherAccessStudent(
+          teacherId,
+          studentId,
+        )) {
+      return false;
+    }
+    final student = TeacherDemoStore.instance.studentById(studentId);
+    final material = TeacherDemoStore.instance.materialById(materialId);
+    if (student == null ||
+        !student.active ||
+        material == null ||
+        material.status != 'aktif' ||
+        TeacherDemoStore.instance
+            .practiceQuestionsForMaterial(materialId)
+            .isEmpty ||
+        reason.trim().isEmpty) {
+      return false;
+    }
+    _closeActiveRecommendation(studentId);
+    _resolveMaterialGaps(studentId, aspect: material.aspect);
+    _recommendationHistory.add(
+      LearningRecommendation(
+        id: _recommendationId++,
+        studentId: studentId,
+        classId: student.classId,
+        aspect: material.aspect,
+        level: material.level,
+        materialId: material.id,
+        source: 'guru',
+        reason: reason.trim(),
+        createdAt: DateTime.now(),
+        teacherId: teacherId,
+      ),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  bool needsSupportForStudent(int studentId) =>
+      masteryHistoryForStudent(studentId).any(
+        (record) =>
+            record.needsSupport &&
+            !_dismissedSupportRecordIds.contains(record.id),
+      ) ||
+      (TeacherDemoStore.instance.studentById(studentId)?.needsSupport ?? false);
+
+  bool setTeacherSupportFlag(int studentId, bool value) {
+    final teacherId = AppSession.teacherId;
+    if (AppSession.role != AppRole.teacher ||
+        teacherId == null ||
+        !TeacherDemoStore.instance.canTeacherAccessStudent(
+          teacherId,
+          studentId,
+        )) {
+      return false;
+    }
+    final student = TeacherDemoStore.instance.studentById(studentId);
+    if (student == null) return false;
+    student.needsSupport = value;
+    if (!value) {
+      _dismissedSupportRecordIds.addAll(
+        masteryHistoryForStudent(studentId)
+            .where((record) => record.needsSupport)
+            .map((record) => record.id),
+      );
+    }
+    notifyListeners();
+    TeacherDemoStore.instance.notifyListeners();
+    return true;
+  }
+
+  Map<String, MasteryRecord> latestMasteryForStudent(int studentId) =>
+      Map.unmodifiable(_latestMasteryForStudent(studentId));
+
+  Map<String, MasteryRecord> latestMasteryForTeacher(
+    int teacherId,
+    int studentId,
+  ) => TeacherDemoStore.instance.canTeacherAccessStudent(teacherId, studentId)
+      ? Map.unmodifiable(_latestMasteryForStudent(studentId))
+      : const {};
+
+  LearningRecommendation? activeRecommendationForStudent(int studentId) =>
+      _activeRecommendationFor(studentId);
+
+  LearningRecommendation? activeRecommendationForTeacher(
+    int teacherId,
+    int studentId,
+  ) => TeacherDemoStore.instance.canTeacherAccessStudent(teacherId, studentId)
+      ? _activeRecommendationFor(studentId)
+      : null;
+
+  List<MaterialGapRecord> materialGapsForStudentTeacher(
+    int teacherId,
+    int studentId,
+  ) => TeacherDemoStore.instance.canTeacherAccessStudent(teacherId, studentId)
+      ? materialGapsForStudent(studentId)
+      : const [];
+
+  List<LearningRecommendation> activeRecommendationsForTeacher(int teacherId) =>
+      recommendationHistoryForTeacher(teacherId)
+          .where((item) => item.status == 'aktif')
+          .toList(growable: false);
 
   void submitRecordingPreview() {
     final id = currentStudentId;
@@ -453,10 +1167,20 @@ class StudentDemoStore extends ChangeNotifier {
   void resetForTests() {
     _practiceHistory.clear();
     _diagnosticHistory.clear();
+    _masteryHistory.clear();
+    _recommendationHistory.clear();
+    _materialGapHistory.clear();
+    _processedDiagnosticIds.clear();
+    _processedPracticeIds.clear();
+    _practiceByCompletionToken.clear();
+    _dismissedSupportRecordIds.clear();
     _largerTextByStudent.clear();
     _recordingPreviewByStudent.clear();
     _practiceAttemptId = 1;
     _diagnosticAttemptId = 1;
+    _masteryRecordId = 1;
+    _recommendationId = 1;
+    _materialGapId = 1;
     notifyListeners();
   }
 

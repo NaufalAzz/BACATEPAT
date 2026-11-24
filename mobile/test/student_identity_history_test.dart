@@ -32,6 +32,7 @@ void main() {
       answers: [answer],
       startedAt: DateTime(2026, 1, 1),
       finishedAt: DateTime(2026, 1, 1, 0, 1),
+      completionToken: 'identity-history-session-1',
     );
 
     expect(first, isNotNull);

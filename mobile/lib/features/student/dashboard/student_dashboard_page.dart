@@ -11,87 +11,133 @@ class StudentDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final student = StudentDemoStore.instance;
     final teacherData = TeacherDemoStore.instance;
-    final id = student.recommendedMaterialId;
-    final material = id == null ? null : teacherData.materialById(id);
-    final active = material?.status == 'aktif' ? material : null;
-    final hasActiveTest = teacherData.diagnostics.any(
-      (item) =>
-          item.classId == student.student.classId && item.status == 'aktif',
-    );
-    final activities = student.activities.take(2).toList();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
-      children: [
-        _Greeting(name: student.studentName, className: student.className),
-        const SizedBox(height: 14),
-        if (active != null)
-          _Recommendation(
-            material: active,
-            done: student.activities.length,
-            onStart: () => Navigator.pushNamed(
-              context,
-              '/siswa/latihan/materi',
-              arguments: active.id,
-            ),
-          )
-        else
-          _NoRecommendation(
-            onOpen: () => Navigator.pushNamed(context, '/siswa/latihan'),
-          ),
-        const SizedBox(height: 10),
-        _DiagnosticRow(
-          completed: student.diagnosticCompleted,
-          active: hasActiveTest,
-          onOpen: () => Navigator.pushNamed(
-            context,
-            student.diagnosticCompleted
-                ? '/siswa/evaluasi'
-                : '/siswa/diagnostik',
-          ),
-        ),
-        const SizedBox(height: 20),
-        Row(
+    return AnimatedBuilder(
+      animation: student,
+      builder: (context, _) {
+        final id = student.recommendedMaterialId;
+        final material = id == null ? null : teacherData.materialById(id);
+        final active = material?.status == 'aktif' ? material : null;
+        final recommendation = student.activeRecommendation;
+        final hasActiveTest = teacherData.diagnostics.any(
+          (item) =>
+              item.classId == student.student.classId && item.status == 'aktif',
+        );
+        final activities = student.activities.take(2).toList();
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
           children: [
-            const Expanded(child: _SectionLabel('AKTIVITAS TERBARU')),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/siswa/evaluasi'),
-              child: const Text(
-                'Lihat semua',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+            _Greeting(name: student.studentName, className: student.className),
+            const SizedBox(height: 14),
+            if (active != null)
+              _Recommendation(
+                material: active,
+                reason: _studentReason(
+                  recommendation?.source,
+                  recommendation?.reason,
+                ),
+                onStart: () => Navigator.pushNamed(
+                  context,
+                  '/siswa/latihan/materi',
+                  arguments: active.id,
+                ),
+              )
+            else
+              _NoRecommendation(
+                message: student.hasCompleteDiagnosticBaseline
+                    ? 'Hebat, semua aspek sudah dikuasai!'
+                    : student.hasAnyDiagnostic
+                    ? 'Hasil tesmu belum lengkap. Minta bantuan Gurumu ya.'
+                    : 'Ayo mulai dengan tes membaca bersama Gurumu.',
+                buttonLabel: student.hasAnyDiagnostic
+                    ? 'Pilih latihan'
+                    : 'Buka tes diagnostik',
+                onOpen: () => Navigator.pushNamed(
+                  context,
+                  student.hasAnyDiagnostic
+                      ? '/siswa/latihan'
+                      : '/siswa/diagnostik',
+                ),
+              ),
+            const SizedBox(height: 10),
+            _DiagnosticRow(
+              completed: student.diagnosticCompleted,
+              active: hasActiveTest,
+              onOpen: () => Navigator.pushNamed(
+                context,
+                student.diagnosticCompleted
+                    ? '/siswa/evaluasi'
+                    : '/siswa/diagnostik',
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Expanded(child: _SectionLabel('AKTIVITAS TERBARU')),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/siswa/evaluasi'),
+                  child: const Text(
+                    'Lihat semua',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+            const Text(
+              'Teruskan langkahmu',
+              style: TextStyle(
+                fontSize: 18,
+                height: 1.25,
+                color: AppTokens.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: AppTokens.outline),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < activities.length; i++) ...[
+                    _ActivityTile(activity: activities[i]),
+                    if (i != activities.length - 1)
+                      const Divider(height: 1, indent: 58),
+                  ],
+                  if (activities.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Belum ada aktivitas membaca.'),
+                    ),
+                ],
               ),
             ),
           ],
-        ),
-        const Text(
-          'Teruskan langkahmu',
-          style: TextStyle(fontSize: 18, height: 1.25, color: AppTokens.text),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: AppTokens.outline),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              for (var i = 0; i < activities.length; i++) ...[
-                _ActivityTile(activity: activities[i]),
-                if (i != activities.length - 1)
-                  const Divider(height: 1, indent: 58),
-              ],
-              if (activities.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Belum ada aktivitas membaca.'),
-                ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
+}
+
+String _studentReason(String? source, String? reason) {
+  if (source == 'guru') return 'Pilihan khusus dari Gurumu.';
+  if (reason == null) return 'Latihan ini dipilih dari hasil belajarmu.';
+  if (reason.contains('dua latihan berturut-turut')) {
+    return 'Hebat! Saatnya mencoba tingkat berikutnya.';
+  }
+  if (reason.contains('Nilai sudah baik')) {
+    return 'Kamu sudah bagus. Coba bacaan yang berbeda.';
+  }
+  if (reason.contains('penguatan')) {
+    return 'Latihan ini membantu menguatkan bacaanmu.';
+  }
+  if (reason.contains('Ulangi materi')) return 'Kita coba lagi pelan-pelan ya.';
+  if (reason.contains('diagnostik')) {
+    return 'Kita mulai dari bagian yang masih perlu dilatih.';
+  }
+  return 'Kita lanjut berlatih membaca bersama.';
 }
 
 class _Greeting extends StatelessWidget {
@@ -156,15 +202,14 @@ class PendarIllustration extends StatelessWidget {
 class _Recommendation extends StatelessWidget {
   const _Recommendation({
     required this.material,
-    required this.done,
+    required this.reason,
     required this.onStart,
   });
   final DemoMaterial material;
-  final int done;
+  final String reason;
   final VoidCallback onStart;
   @override
   Widget build(BuildContext context) {
-    final progress = (done / 8).clamp(0.0, 1.0);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -205,32 +250,9 @@ class _Recommendation extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Text(
-                '$done dari 8 selesai',
-                style: const TextStyle(fontSize: 10, color: Colors.white),
-              ),
-              const Spacer(),
-              Text(
-                '${(progress * 100).round()}%',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: Colors.white.withValues(alpha: .24),
-              color: AppTokens.accent,
-            ),
+          Text(
+            reason,
+            style: const TextStyle(fontSize: 12, color: Colors.white),
           ),
           const SizedBox(height: 14),
           const Wrap(
@@ -298,8 +320,14 @@ class _WordSticker extends StatelessWidget {
 }
 
 class _NoRecommendation extends StatelessWidget {
-  const _NoRecommendation({required this.onOpen});
+  const _NoRecommendation({
+    required this.onOpen,
+    required this.message,
+    required this.buttonLabel,
+  });
   final VoidCallback onOpen;
+  final String message;
+  final String buttonLabel;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
@@ -319,8 +347,8 @@ class _NoRecommendation extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Ayo membaca bersama!',
+        Text(
+          message,
           style: TextStyle(
             fontSize: 18,
             color: Colors.white,
@@ -328,7 +356,7 @@ class _NoRecommendation extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        FilledButton(onPressed: onOpen, child: const Text('Pilih latihan')),
+        FilledButton(onPressed: onOpen, child: Text(buttonLabel)),
       ],
     ),
   );

@@ -234,6 +234,12 @@ class _ReportsPageState extends State<ReportsPage> {
                         label: aspectLabel(score.key),
                         value: '${score.value}% • ${masteryLabel(score.value)}',
                       ),
+                  ..._studentLearningReportLines(
+                    store: store,
+                    student: student,
+                    teacherId: AppSession.teacherId ?? -1,
+                    period: _period,
+                  ),
                   const SizedBox(height: AppTokens.space12),
                 ],
                 const Text(
@@ -267,6 +273,72 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 }
+
+List<Widget> _studentLearningReportLines({
+  required TeacherDemoStore store,
+  required DemoStudent student,
+  required int teacherId,
+  required DateTimeRange period,
+}) {
+  final learningStore = StudentDemoStore.instance;
+  final mastery = learningStore.latestMasteryForTeacher(teacherId, student.id);
+  final recommendations = learningStore.recommendationHistoryForTeacher(
+    teacherId,
+  );
+  final activeRecommendations = recommendations
+      .where((item) => item.studentId == student.id && item.status == 'aktif')
+      .toList();
+  final recommendation = activeRecommendations.isEmpty
+      ? null
+      : activeRecommendations.last;
+  final practice = learningStore.allPracticeHistory
+      .where(
+        (attempt) =>
+            attempt.studentId == student.id &&
+            !attempt.finishedAt.isBefore(period.start) &&
+            !attempt.finishedAt.isAfter(period.end),
+      )
+      .toList();
+  final records = learningStore
+      .masteryHistoryForTeacher(teacherId)
+      .where(
+        (record) =>
+            record.studentId == student.id &&
+            !record.recordedAt.isBefore(period.start) &&
+            !record.recordedAt.isAfter(period.end),
+      );
+  return [
+    for (final entry in mastery.entries)
+      _ReportLine(
+        icon: Icons.menu_book_outlined,
+        label: 'Penguasaan ${aspectLabel(entry.key)}',
+        value: '${entry.value.score}% · ${_reportStatus(entry.value.status)}',
+      ),
+    _ReportLine(
+      icon: Icons.menu_book_outlined,
+      label: 'Latihan pada periode',
+      value: '${practice.length} percobaan selesai',
+    ),
+    _ReportLine(
+      icon: Icons.show_chart_rounded,
+      label: 'Perubahan penguasaan pada periode',
+      value: '${records.length} catatan aktual',
+    ),
+    _ReportLine(
+      icon: Icons.lightbulb_outline_rounded,
+      label: 'Rekomendasi aktif',
+      value: recommendation == null
+          ? 'Belum ada'
+          : '${store.materialById(recommendation.materialId)?.title ?? 'Materi tidak tersedia'} · ${recommendation.reason}',
+    ),
+  ];
+}
+
+String _reportStatus(String status) => switch (status) {
+  'dikuasai' => 'Dikuasai',
+  'sedang_berlatih' => 'Sedang berlatih',
+  _ => 'Belum dikuasai',
+};
 
 class _ReportLine extends StatelessWidget {
   const _ReportLine({

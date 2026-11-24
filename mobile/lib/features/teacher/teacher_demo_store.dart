@@ -335,7 +335,6 @@ final class TeacherDemoStore extends ChangeNotifier {
       guardianName: 'Bapak Pratama',
       parentConsent: true,
       aiConsent: true,
-      needsSupport: true,
     ),
     DemoStudent(
       id: 2,
@@ -557,8 +556,6 @@ final class TeacherDemoStore extends ChangeNotifier {
     ),
   ];
 
-  final Map<int, int> _recommendations = {1: 1, 2: 3};
-
   String teacherName = 'Rina Marlina';
   String teacherEmail = 'rina@example.sch.id';
   int audioRetentionDays = 90;
@@ -652,8 +649,6 @@ final class TeacherDemoStore extends ChangeNotifier {
 
   int get pendingRecordingCount =>
       accessibleRecordings.where((item) => item.status == 'terkirim').length;
-  int? recommendationFor(int studentId) => _recommendations[studentId];
-
   int? get demoTeacherId => 1;
 
   void saveStudent({
@@ -882,15 +877,6 @@ final class TeacherDemoStore extends ChangeNotifier {
     questions.removeWhere((item) => item.id == id);
     notifyListeners();
     return true;
-  }
-
-  void setRecommendation(int studentId, int materialId) {
-    final teacherId = AppSession.teacherId;
-    if (teacherId == null || !canTeacherAccessStudent(teacherId, studentId)) {
-      return;
-    }
-    _recommendations[studentId] = materialId;
-    notifyListeners();
   }
 
   void addDiagnostic({
