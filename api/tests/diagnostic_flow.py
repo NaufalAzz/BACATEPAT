@@ -144,7 +144,22 @@ assert call("GET",history+"/diagnostik",token=teacher)["data"][0]["judul"] == su
 assert call("GET",history+"/latihan",token=teacher)["data"][0]["judul"] == "Baca kata"
 assert call("GET",history+"/evaluasi",token=teacher)["data"][0]["comment"] == "Direvisi"
 call("GET",history+"/evaluasi",token=student,expected=403)
-for token in [student, teacher]:
+# A new session must recover only the signed-in student's persisted results.
+call("POST", "auth/logout", {}, student)
+call("GET", "auth/me", token=student, expected=401)
+student = login(username)
+attempts = call("GET", "siswa/latihan/riwayat", token=student)["data"]
+assert any(row["id"] == oral_attempt and float(row["skor"]) == 90 for row in attempts)
+
+peer_name = "peer." + suffix
+call("POST", "guru/siswa", {"nama": "Siswa kedua", "username": peer_name,
+     "password": password, "kelas_id": room, "nama_wali": "Wali kedua"}, teacher, 201)
+peer = login(peer_name)
+assert call("GET", "auth/me", token=peer)["data"]["username"] == peer_name
+assert call("GET", "siswa/latihan/riwayat", token=peer)["data"] == []
+assert call("GET", "siswa/evaluasi", token=peer)["data"] == []
+call("POST", f"siswa/latihan/{oral_attempt}/selesai", {}, peer, 404)
+for token in [student, peer, teacher]:
     call("POST", "auth/logout", {}, token)
     call("GET", "auth/me", token=token, expected=401)
 print("Diagnostic workflow passed")
