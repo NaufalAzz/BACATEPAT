@@ -556,6 +556,129 @@ final class TeacherDemoStore extends ChangeNotifier {
     ),
   ];
 
+  void loadAccount(Map<String, dynamic> data) {
+    final teacher = data['teacher'];
+    teacherName = teacher['name'];
+    teacherEmail = teacher['email'] ?? '';
+    audioRetentionDays = teacher['retention'] ?? 90;
+    classes
+      ..clear()
+      ..addAll([
+        for (final r in data['classes'])
+          DemoClass(
+            id: r['id'],
+            name: r['name'],
+            grade: r['grade'],
+            year: r['school_year'],
+            teacherId: r['teacher_id'],
+          ),
+      ]);
+    students
+      ..clear()
+      ..addAll([
+        for (final r in data['students'])
+          DemoStudent(
+            id: r['id'],
+            userId: r['user_id'],
+            name: r['name'],
+            username: r['username'],
+            password: '',
+            classId: r['current_class_id'],
+            guardianName: r['guardian_name'],
+            parentConsent: r['parent_consent'] == 1,
+            aiConsent: r['ai_consent'] == 1,
+            active: r['status'] == 'aktif',
+          ),
+      ]);
+    materials
+      ..clear()
+      ..addAll([
+        for (final r in data['materials'])
+          DemoMaterial(
+            id: r['id'],
+            title: r['title'],
+            aspect: r['aspect_code'],
+            level: r['level'],
+            content: r['content'],
+            status:
+                const {'active': 'aktif', 'archived': 'arsip'}[r['status']] ??
+                'draf',
+          ),
+      ]);
+    questions
+      ..clear()
+      ..addAll([
+        for (final r in data['questions'])
+          DemoQuestion(
+            id: r['id'],
+            materialId: r['material_id'],
+            prompt: r['prompt'],
+            picture: r['stimulus_text'] ?? '',
+            aspect: r['aspect_code'],
+            level: r['level'],
+            type: r['question_type'] == 'multiple_choice'
+                ? 'Pilihan ganda'
+                : 'Baca lisan',
+            choices: [for (final o in r['options']) o['option_text']],
+            correctAnswerIndex: (r['options'] as List).indexed
+                .where((o) => o.$2['is_correct'] == 1)
+                .firstOrNull
+                ?.$1,
+            usage: const {
+              'practice': 'latihan',
+              'diagnostic': 'diagnostik',
+              'both': 'keduanya',
+            }[r['usage_scope']]!,
+            status:
+                const {
+                  'approved': 'disetujui',
+                  'rejected': 'ditolak',
+                  'inactive': 'nonaktif',
+                }[r['review_status']] ??
+                'draf',
+            targetText: r['target_text'],
+            hint: r['hint'] ?? '',
+          ),
+      ]);
+    diagnostics
+      ..clear()
+      ..addAll([
+        for (final r in data['tests'])
+          DemoDiagnostic(
+            id: r['id'],
+            title: r['title'],
+            classId: r['class_id'],
+            questionIds: List<int>.from(r['questions']),
+            status:
+                const {'active': 'aktif', 'finished': 'selesai'}[r['status']] ??
+                'draf',
+          ),
+      ]);
+    recordings
+      ..clear()
+      ..addAll([
+        for (final r in data['recordings'])
+          DemoRecording(
+            id: r['id'],
+            studentId: r['student_id'],
+            targetText: r['target_text_snapshot'],
+            aspect: r['aspect_code'] ?? '',
+            durationSeconds: r['duration_seconds'],
+            parentConsent: true,
+            aiConsent: r['ai_consent_snapshot'] == 1,
+            status: r['accuracy_score'] != null
+                ? 'dievaluasi'
+                : r['status'] == 'uploaded'
+                ? 'terkirim'
+                : r['status'],
+            accuracyScore: r['accuracy_score'],
+            fluencyScore: r['fluency_score'],
+            comment: r['comment'] ?? '',
+            advice: r['advice'] ?? '',
+          ),
+      ]);
+  }
+
   String teacherName = 'Rina Marlina';
   String teacherEmail = 'rina@example.sch.id';
   int audioRetentionDays = 90;

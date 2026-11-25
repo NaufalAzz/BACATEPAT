@@ -1163,8 +1163,123 @@ class StudentDemoStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void loadAccount(Map<String, dynamic> data) {
+    _clearHistory();
+    int score(dynamic value) => num.parse(value.toString()).round();
+    for (final r in data['practice']) {
+      _practiceHistory.add(
+        PracticeAttempt(
+          id: r['id'],
+          attemptNumber: r['attempt_number'],
+          studentId: r['student_id'],
+          classId: r['class_id'],
+          materialId: r['material_id'] ?? 0,
+          level: r['level_snapshot'],
+          recommendationId: r['recommendation_id'],
+          title: r['material_title_snapshot'],
+          aspect: r['aspect_code'],
+          availableQuestionCount: r['question_count'],
+          questionSnapshots: [],
+          answers: [],
+          score: score(r['score']),
+          startedAt: DateTime.parse(r['started_at']),
+          finishedAt: DateTime.parse(r['finished_at']),
+          completionToken: r['completion_token'] ?? '',
+        ),
+      );
+    }
+    for (final r in data['mastery']) {
+      _masteryHistory.add(
+        MasteryRecord(
+          id: r['id'],
+          studentId: r['student_id'],
+          classId: r['class_id'],
+          aspect: r['aspect_code'],
+          level: r['observed_level'],
+          recommendedAspect: r['target_aspect_code'],
+          recommendedLevel: r['target_level'],
+          status: const {
+            'not_mastered': 'belum_dikuasai',
+            'practicing': 'sedang_berlatih',
+            'mastered': 'dikuasai',
+          }[r['mastery_status']]!,
+          score: score(r['score']),
+          source:
+              const {
+                'diagnostic': 'diagnostik',
+                'practice': 'latihan',
+              }[r['source_type']] ??
+              r['source_type'],
+          sourceId:
+              r['diagnostic_attempt_id'] ??
+              r['practice_attempt_id'] ??
+              r['audio_evaluation_revision_id'],
+          recordedAt: DateTime.parse(r['recorded_at']),
+          reason: r['reason'],
+          needsSupport: r['needs_teacher_support'] == 1,
+        ),
+      );
+    }
+    for (final r in data['diagnostics']) {
+      _diagnosticHistory.add(
+        DiagnosticAttempt(
+          id: r['id'],
+          attemptNumber: 1,
+          studentId: r['student_id'],
+          diagnosticId: r['diagnostic_test_id'],
+          classId: r['class_id'],
+          title: r['title'],
+          answers: [],
+          aspectScores: {
+            for (final m in _masteryHistory.where(
+              (m) => m.source == 'diagnostik' && m.sourceId == r['id'],
+            ))
+              m.aspect: m.score,
+          },
+          score: score(r['overall_score']),
+          startedAt: DateTime.parse(r['started_at']),
+          finishedAt: DateTime.parse(r['finished_at']),
+        ),
+      );
+    }
+    for (final r in data['recommendations']) {
+      _recommendationHistory.add(
+        LearningRecommendation(
+          id: r['id'],
+          studentId: r['student_id'],
+          classId: r['class_id'],
+          aspect: r['aspect_code'],
+          level: r['target_level'],
+          materialId: r['material_id'],
+          source: r['source'] == 'teacher' ? 'guru' : 'sistem',
+          reason: r['reason'],
+          createdAt: DateTime.parse(r['created_at']),
+        ),
+      );
+    }
+    for (final r in data['gaps']) {
+      _materialGapHistory.add(
+        MaterialGapRecord(
+          id: r['id'],
+          studentId: r['student_id'],
+          classId: r['class_id'],
+          aspect: r['aspect_code'],
+          level: r['target_level'],
+          createdAt: DateTime.parse(r['created_at']),
+          reason: r['reason'],
+        ),
+      );
+    }
+    notifyListeners();
+  }
+
   @visibleForTesting
   void resetForTests() {
+    _clearHistory();
+    notifyListeners();
+  }
+
+  void _clearHistory() {
     _practiceHistory.clear();
     _diagnosticHistory.clear();
     _masteryHistory.clear();
@@ -1181,7 +1296,6 @@ class StudentDemoStore extends ChangeNotifier {
     _masteryRecordId = 1;
     _recommendationId = 1;
     _materialGapId = 1;
-    notifyListeners();
   }
 
   Map<String, int> _latestScores(Iterable<(String, int)> values) {

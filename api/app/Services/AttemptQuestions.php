@@ -28,7 +28,7 @@ enum AttemptQuestions: string
         }
     }
 
-    public function saveChoice(int $id, int $questionId, string $choice): void
+    public function saveChoice(int $id, int $questionId, string $choice): bool
     {
         $row = DB::table($this->value.'_attempt_answers')->where($this->value.'_attempt_id', $id)->where('question_id', $questionId)->firstOrFail();
         abort_unless($row->question_type === 'multiple_choice', 422, 'Jawaban lisan membutuhkan rekaman.');
@@ -38,6 +38,7 @@ enum AttemptQuestions: string
         DB::table($this->value.'_attempt_answers')->where('id', $row->id)->update(['selected_answer' => $option->option_text_snapshot,
             'score' => $option->is_correct_snapshot ? 100 : 0, 'is_correct' => $option->is_correct_snapshot, 'answered_at' => now()]);
 
+        return (bool) $option->is_correct_snapshot;
     }
 
     public function present(int $id, bool $audioAllowed): array

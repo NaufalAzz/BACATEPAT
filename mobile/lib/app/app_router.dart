@@ -8,6 +8,7 @@ import '../features/teacher/teacher_shell.dart';
 import '../features/teacher/teacher_demo_store.dart';
 import '../features/student/student_demo_store.dart';
 import 'app_session.dart';
+import '../core/api/learning_session.dart';
 import 'navigation_plan.dart';
 
 abstract final class AppRouter {
@@ -60,8 +61,11 @@ abstract final class AppRouter {
     final hasValidIdentity = activeRole == AppRole.student
         ? StudentDemoStore.instance.currentStudentId != null
         : activeRole == AppRole.teacher &&
-              AppSession.userId == TeacherDemoStore.instance.demoTeacherId &&
-              AppSession.teacherId == TeacherDemoStore.instance.demoTeacherId;
+              AppSession.userId != null &&
+              AppSession.teacherId == AppSession.userId &&
+              (LearningSession.enabled ||
+                  AppSession.teacherId ==
+                      TeacherDemoStore.instance.demoTeacherId);
     if (activeRole == null || !hasValidIdentity) {
       return MaterialPageRoute<void>(
         settings: settings,

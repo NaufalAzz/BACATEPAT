@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/api/learning_session.dart';
+import '../../../core/api/bacatepat_api.dart';
+
 import '../../../app/app_session.dart';
 import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -159,8 +162,22 @@ class _ProfilePageState extends State<ProfilePage> {
             'Keluar dari akun',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
-          onTap: () {
-            AppSession.end();
+          onTap: () async {
+            if (LearningSession.enabled) {
+              try {
+                await LearningSession.logout();
+              } on ApiError catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(e.message)));
+                }
+                return;
+              }
+              if (!context.mounted) return;
+            } else {
+              AppSession.end();
+            }
+
             Navigator.pushNamedAndRemoveUntil(
               context,
               '/welcome',

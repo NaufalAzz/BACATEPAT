@@ -1,5 +1,8 @@
 import 'dart:math';
 
+import '../../../core/api/learning_session.dart';
+import '../../../core/api/bacatepat_api.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
@@ -227,9 +230,15 @@ class StudentMaterialDetailPage extends StatelessWidget {
         ),
       );
     }
-    final hasPracticeQuestions = store
-        .practiceQuestionsForMaterial(material.id)
-        .isNotEmpty;
+    final catalog = store.questions.where(
+      (q) =>
+          q.materialId == material.id &&
+          q.status == 'disetujui' &&
+          q.usage != 'diagnostik',
+    );
+    final hasPracticeQuestions = LearningSession.enabled
+        ? catalog.isNotEmpty && catalog.every((q) => q.type == 'Pilihan ganda')
+        : store.practiceQuestionsForMaterial(material.id).isNotEmpty;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
@@ -355,7 +364,73 @@ class StudentExercisePage extends StatefulWidget {
 
 class _StudentExercisePageState extends State<StudentExercisePage> {
   late final DemoMaterial? _material;
-  late final List<DemoQuestion> _questions;
+  late List<DemoQuestion> _questions;
+  int? _remoteId;
+  bool _busy = false;
+  bool _correctSelection = false;
+  Future<void>? _loading;
+  Future<void> _startRemote() async {
+    final material = _material!;
+    final result = await LearningSession.api.request(
+      'siswa/latihan/mulai',
+      body: {'materi_id': material.id},
+    );
+    if (!mounted) return;
+    final data = result['data'];
+    _remoteId = data['hasil_id'];
+    _questions = [
+      for (final r in data['soal'])
+        DemoQuestion(
+          id: r['soal_id'],
+          materialId: material.id,
+          prompt: r['pertanyaan'],
+          picture: r['stimulus'] ?? '',
+          aspect: material.aspect,
+          level: material.level,
+          type: 'Pilihan ganda',
+          choices: List<String>.from(r['opsi']),
+          hint:
+              TeacherDemoStore.instance.questions
+                  .where((q) => q.id == r['soal_id'])
+                  .firstOrNull
+                  ?.hint ??
+              '',
+          correctFeedback: 'Bagus, jawabanmu tepat!',
+        ),
+    ];
+  }
+
+  Future<void> _choose(int index) async {
+    if (_busy) return;
+    if (LearningSession.enabled) {
+      _busy = true;
+      try {
+        final q = _questions[_questionIndex];
+        final result = await LearningSession.api.request(
+          'siswa/latihan/$_remoteId/jawaban',
+          body: {'soal_id': q.id, 'jawaban': q.choices[index]},
+        );
+        if (!mounted) return;
+        _correctSelection = result['benar'] == true;
+      } on ApiError catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(e.message)));
+        }
+        return;
+      } finally {
+        _busy = false;
+      }
+    }
+    setState(() => _selected = index);
+  }
+
+  bool get _isRight =>
+      _selected != null &&
+      (LearningSession.enabled
+          ? _correctSelection
+          : _selected == _questions[_questionIndex].correctAnswerIndex);
+
   late DateTime _startedAt;
   late String _completionToken;
   int? _recommendationId;
@@ -380,6 +455,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
     _questions = eligible
         .map((item) => item.copyWithIdAndStatus(item.id, item.status))
         .toList(growable: false);
+    if (LearningSession.enabled && _material != null) _loading = _startRemote();
     _startedAt = DateTime.now();
     _completionToken = '${_startedAt.microsecondsSinceEpoch}-$hashCode';
     final recommendation = StudentDemoStore.instance.activeRecommendation;
@@ -390,6 +466,29 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading != null) {
+      return FutureBuilder<void>(
+        future: _loading,
+        builder: (context, state) {
+          if (state.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state.hasError) {
+            return Center(
+              child: TextButton(
+                onPressed: () => setState(() => _loading = _startRemote()),
+                child: Text('${state.error} · Coba lagi'),
+              ),
+            );
+          }
+          return _exercise(context);
+        },
+      );
+    }
+    return _exercise(context);
+  }
+
+  Widget _exercise(BuildContext context) {
     final material = _material;
     if (material == null || material.status != 'aktif') {
       return const Center(
@@ -430,7 +529,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${_correct + (_selected == question.correctAnswerIndex ? 1 : 0)} bintang',
+                    '${_correct + (_isRight ? 1 : 0)} bintang',
                     maxLines: 1,
                     style: const TextStyle(
                       fontSize: 12,
@@ -494,19 +593,17 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
                     Expanded(
                       child: OutlinedButton(
                         key: ValueKey('exercise-answer-$i'),
-                        onPressed: _selected == null
-                            ? () => setState(() => _selected = i)
-                            : null,
+                        onPressed: _selected == null ? () => _choose(i) : null,
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 50),
                           backgroundColor: _selected == i
-                              ? _selected == question.correctAnswerIndex
+                              ? _isRight
                                     ? StudentColors.mint
                                     : StudentColors.peach
                               : Colors.white,
                           side: BorderSide(
                             color: _selected == i
-                                ? _selected == question.correctAnswerIndex
+                                ? _isRight
                                       ? AppTokens.primary
                                       : AppTokens.coralDark
                                 : AppTokens.outline,
@@ -530,11 +627,9 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
               ),
               if (_selected != null)
                 StudentPanel(
-                  color: _selected == question.correctAnswerIndex
-                      ? StudentColors.mint
-                      : StudentColors.peach,
+                  color: _isRight ? StudentColors.mint : StudentColors.peach,
                   child: Text(
-                    _selected == question.correctAnswerIndex
+                    _isRight
                         ? question.correctFeedback
                         : 'Tidak apa-apa. ${question.hint}',
                     textAlign: TextAlign.center,
@@ -560,7 +655,40 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
     );
   }
 
-  void _submitCurrentAnswer() {
+  Future<void> _submitCurrentAnswer() async {
+    if (LearningSession.enabled) {
+      if (_busy || _selected == null) return;
+      if (_questionIndex + 1 < _questions.length) {
+        setState(() {
+          if (_isRight) _correct++;
+          _selected = null;
+          _questionIndex++;
+        });
+        return;
+      }
+      _busy = true;
+      try {
+        await LearningSession.api.request(
+          'siswa/latihan/$_remoteId/selesai',
+          body: {},
+        );
+        await LearningSession.refresh();
+        if (!mounted) return;
+        _attempt = StudentDemoStore.instance.practiceHistory.firstWhere(
+          (a) => a.id == _remoteId,
+        );
+        setState(() => _finished = true);
+      } on ApiError catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      } finally {
+        _busy = false;
+      }
+      return;
+    }
+
     final material = _material;
     if (material == null) return;
     final question = _questions[_questionIndex];
@@ -647,6 +775,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
       OutlinedButton.icon(
         key: const ValueKey('exercise-repeat'),
         onPressed: () => setState(() {
+          if (LearningSession.enabled) _loading = _startRemote();
           _questionIndex = 0;
           _correct = 0;
           _selected = null;

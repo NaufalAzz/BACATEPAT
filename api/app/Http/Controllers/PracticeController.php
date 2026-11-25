@@ -63,9 +63,9 @@ class PracticeController
         return DB::transaction(function () use ($request, $id, $data) {
             $attempt = DB::table('practice_attempts')->where('student_id', $this->student($request)->id)->where('id', $id)->lockForUpdate()->firstOrFail();
             abort_unless($attempt->status === 'in_progress', 409);
-            AttemptQuestions::Practice->saveChoice($id, $data['soal_id'], $data['jawaban']);
+            $correct = AttemptQuestions::Practice->saveChoice($id, $data['soal_id'], $data['jawaban']);
 
-            return ['success' => true];
+            return ['success' => true, 'benar' => $correct];
         });
     }
 

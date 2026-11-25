@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_session.dart';
+import '../../core/api/learning_session.dart';
+import '../../core/api/bacatepat_api.dart';
 import '../../app/navigation_plan.dart';
 import '../../core/components/baca_tepat_mark.dart';
 import '../../core/theme/app_tokens.dart';
@@ -36,11 +38,31 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _enterPreview() {
+  Future<void> _enterPreview() async {
     if (!_formKey.currentState!.validate()) return;
     final store = TeacherDemoStore.instance;
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
+    if (LearningSession.enabled) {
+      if (LearningSession.busy) return;
+      final path = _homePath;
+      try {
+        await LearningSession.login(
+          username,
+          password,
+          _isTeacher ? 'guru' : 'siswa',
+        );
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, path, (_) => false);
+        }
+      } on ApiError catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+      return;
+    }
     if (_isTeacher) {
       if (!store.authenticateTeacher(username, password)) {
         _showInvalidLogin();

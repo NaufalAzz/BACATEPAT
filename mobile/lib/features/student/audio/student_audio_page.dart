@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/api/learning_session.dart';
+import '../../../core/api/bacatepat_api.dart';
+
 import '../../../app/app_session.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../teacher/teacher_demo_store.dart';
@@ -616,8 +619,22 @@ class StudentProfilePage extends StatelessWidget {
         const SizedBox(height: 12),
         OutlinedButton.icon(
           key: const ValueKey('student-logout'),
-          onPressed: () {
-            AppSession.end();
+          onPressed: () async {
+            if (LearningSession.enabled) {
+              try {
+                await LearningSession.logout();
+              } on ApiError catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(e.message)));
+                }
+                return;
+              }
+              if (!context.mounted) return;
+            } else {
+              AppSession.end();
+            }
+
             Navigator.pushNamedAndRemoveUntil(
               context,
               '/welcome',

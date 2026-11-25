@@ -3,6 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/theme/app_theme.dart';
 import 'app_router.dart';
+import 'app_session.dart';
+import '../core/api/learning_session.dart';
+import 'navigation_plan.dart';
 
 class BacaTepatApp extends StatelessWidget {
   const BacaTepatApp({super.key});
@@ -19,7 +22,13 @@ class BacaTepatApp extends StatelessWidget {
       navigatorKey: AppRouter.navigatorKey,
       onGenerateRoute: AppRouter.onGenerateRoute,
       onGenerateInitialRoutes: (_) => [
-        AppRouter.onGenerateRoute(const RouteSettings(name: '/welcome')),
+        AppRouter.onGenerateRoute(
+          RouteSettings(
+            name: LearningSession.enabled && AppSession.role != null
+                ? (AppSession.role == AppRole.teacher ? '/guru' : '/siswa')
+                : '/welcome',
+          ),
+        ),
       ],
       initialRoute: '/welcome',
     );

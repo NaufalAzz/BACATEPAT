@@ -158,6 +158,13 @@ peer = login(peer_name)
 assert call("GET", "auth/me", token=peer)["data"]["username"] == peer_name
 assert call("GET", "siswa/latihan/riwayat", token=peer)["data"] == []
 assert call("GET", "siswa/evaluasi", token=peer)["data"] == []
+own_data = call("GET", "auth/learning-data", token=student)["data"]
+peer_data = call("GET", "auth/learning-data", token=peer)["data"]
+assert [s["id"] for s in own_data["students"]] == [student_id]
+assert any(a["id"] == oral_attempt and float(a["score"]) == 90 for a in own_data["practice"])
+assert [s["username"] for s in peer_data["students"]] == [peer_name]
+assert peer_data["practice"] == [] and peer_data["mastery"] == []
+assert all("is_correct" not in option for q in peer_data["questions"] for option in q["options"])
 call("POST", f"siswa/latihan/{oral_attempt}/selesai", {}, peer, 404)
 for token in [student, peer, teacher]:
     call("POST", "auth/logout", {}, token)

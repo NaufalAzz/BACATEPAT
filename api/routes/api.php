@@ -20,6 +20,7 @@ Route::get('health', fn () => ['service' => 'bacatepat', 'status' => 'ok']);
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::get('auth/learning-data', \App\Http\Controllers\LearningDataController::class);
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::put('auth/password', [AuthController::class, 'password'])->middleware(RequireRole::class.':guru');

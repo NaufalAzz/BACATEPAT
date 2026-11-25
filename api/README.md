@@ -25,7 +25,16 @@ Pada database pengembangan kosong, `php artisan db:seed` memuat kelas, siswa, ma
 
 ## Kontrak untuk frontend asli
 
-Aplikasi Flutter pada commit `36a8467` membaca data dari `TeacherDemoStore` dan `StudentDemoStore`. API berjalan secara mandiri. Menjalankan server belum mengalihkan aplikasi ke data MySQL. Migrasi dan seeder membaca berkas SQL asli dari folder `database/` di samping `api/`. Sertakan kedua folder saat menyiapkan server.
+Untuk memakai akun MySQL dari layar Flutter asli, jalankan API di port 8000 dan gunakan terminal kedua dari folder `mobile/`:
+
+```powershell
+flutter pub get
+flutter run -d chrome --web-hostname=localhost --web-port=5173 --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+Set `WEB_ORIGINS=http://localhost:5173` di `api/.env`. Login, pemulihan sesi, pembacaan data akun, dan penyimpanan latihan pilihan ganda menggunakan API. Token disimpan melalui flutter_secure_storage. Perintah `flutter run` tanpa alamat API menjalankan mode demo lokal. Formulir administrasi, diagnostik, dan perekaman suara masih mengikuti alur pratinjau pada tahap ini.
+
+Migrasi dan seeder membaca berkas SQL asli dari folder `database/` di samping `api/`. Sertakan kedua folder saat menyiapkan server.
 
 Semua rute di bawah memakai awalan `/api/v1`. Kirim JSON dengan header `Accept: application/json`. Login dengan `POST auth/login` dan field `username`, `password`, dan `device_name`. Field opsional `role` menerima `guru` atau `siswa` sesuai portal. Gunakan `data.token` sebagai bearer token untuk permintaan berikutnya. Daftar dengan paginasi Laravel menyediakan `data`, `current_page`, dan `last_page`.
 
