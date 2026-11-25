@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Run daily with a MySQL client option file readable only by the backup account.
+set -euo pipefail
+umask 077
+: "${MYSQL_CLIENT_FILE:?Set MYSQL_CLIENT_FILE to a protected MySQL client option file}"
+: "${BACKUP_DIR:?Set BACKUP_DIR to a dedicated backup directory}"
+db_name=${DB_DATABASE:-bacatepat}
+mkdir -p -- "$BACKUP_DIR"
+tmp=$(mktemp "$BACKUP_DIR/.bacatepat.XXXXXXXX")
+trap 'rm -f -- "$tmp"' EXIT
+mysqldump --defaults-extra-file="$MYSQL_CLIENT_FILE" --single-transaction --no-tablespaces --set-gtid-purged=OFF "$db_name" | gzip -c >"$tmp"
+gzip -t "$tmp"
+mv -- "$tmp" "$BACKUP_DIR/bacatepat-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+find "$BACKUP_DIR" -maxdepth 1 -type f -name 'bacatepat-????????T??????Z.sql.gz' -mmin +20160 -delete
