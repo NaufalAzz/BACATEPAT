@@ -32,6 +32,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
         Route::get('diagnostik', [ContentController::class, 'tests']);
         Route::post('diagnostik', [ContentController::class, 'createTest']);
+        Route::get('diagnostik/{id}', [ContentController::class, 'testDetail']);
         Route::put('diagnostik/{id}', [ContentController::class, 'createTest']);
         Route::get('diagnostik/{id}/hasil', [TeacherReviewController::class, 'results']);
         Route::patch('diagnostik/{id}/status', [ContentController::class, 'testStatus']);

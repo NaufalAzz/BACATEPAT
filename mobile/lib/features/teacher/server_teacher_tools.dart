@@ -6,6 +6,42 @@ typedef Field = ({String key, String label, List<String>? options});
 Field field(String key, String label, [List<String>? options]) =>
     (key: key, label: label, options: options);
 
+Future<bool> confirmAction(
+  BuildContext context,
+  String title,
+  String message,
+  Future<void> Function() run,
+) async {
+  final accepted = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialog, false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialog, true),
+          child: Text(title),
+        ),
+      ],
+    ),
+  );
+  if (accepted != true) return false;
+  try {
+    await run();
+    return true;
+  } on ApiError catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+    return false;
+  }
+}
+
 /// Keep each draft open when validation fails so a teacher can correct it.
 Future<bool> editForm(
   BuildContext context,
@@ -387,17 +423,38 @@ class _TeacherContentPageState extends State<TeacherContentPage> {
                         ].join(' · '),
                       ),
                       onTap: () => editContent(row),
-                      trailing: PopupMenuButton<bool>(
+                      trailing: PopupMenuButton<String>(
                         tooltip: 'Ubah status',
-                        onSelected: (approved) =>
-                            changeStatus(row['id'], approved),
+                        onSelected: (action) async {
+                          if (action == 'hapus') {
+                            final ok = await confirmAction(
+                              context,
+                              'Hapus soal',
+                              row['prompt'],
+                              () async {
+                                await widget.api.request(
+                                  "guru/soal/${row['id']}",
+                                  method: 'DELETE',
+                                );
+                              },
+                            );
+                            if (mounted && ok) reload();
+                          } else {
+                            await changeStatus(row['id'], action == 'setujui');
+                          }
+                        },
                         itemBuilder: (_) => [
+                          if (section == 'soal')
+                            const PopupMenuItem(
+                              value: 'hapus',
+                              child: Text('Hapus soal'),
+                            ),
                           const PopupMenuItem(
-                            value: true,
+                            value: 'setujui',
                             child: Text('Setujui'),
                           ),
                           PopupMenuItem(
-                            value: false,
+                            value: 'tolak',
                             child: Text(
                               section == 'materi' ? 'Arsipkan' : 'Tolak',
                             ),

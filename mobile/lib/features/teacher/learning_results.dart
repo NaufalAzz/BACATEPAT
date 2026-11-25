@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/bacatepat_api.dart';
 import 'server_reviews.dart';
+import 'server_teacher_tools.dart';
 
 class LearningProgress extends StatefulWidget {
   const LearningProgress({
@@ -131,7 +132,63 @@ class _DiagnosticResultsState extends State<DiagnosticResults> {
               if (widget.testId == null)
                 ListTile(
                   title: Text(row['title']),
-                  trailing: const Icon(Icons.chevron_right),
+                  subtitle: Text(
+                    {
+                          'draft': 'Draf',
+                          'active': 'Aktif',
+                          'finished': 'Selesai',
+                        }[row['status']] ??
+                        row['status'],
+                  ),
+                  trailing: row['status'] == 'draft'
+                      ? TextButton(
+                          child: const Text('Ubah draf'),
+                          onPressed: () async {
+                            try {
+                              final detail = await widget.api.request(
+                                "guru/diagnostik/${row['id']}",
+                              );
+                              if (!context.mounted) return;
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ClassTestBuilder(
+                                    api: widget.api,
+                                    classId: widget.classId,
+                                    draft: detail['data'],
+                                  ),
+                                ),
+                              );
+                              if (mounted) turn(0);
+                            } on ApiError catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.message)),
+                                );
+                              }
+                            }
+                          },
+                        )
+                      : row['status'] == 'active'
+                      ? TextButton(
+                          child: const Text('Akhiri tes'),
+                          onPressed: () async {
+                            final ok = await confirmAction(
+                              context,
+                              'Akhiri tes',
+                              row['title'],
+                              () async {
+                                await widget.api.request(
+                                  "guru/diagnostik/${row['id']}/status",
+                                  method: 'PATCH',
+                                  body: {'status': 'selesai'},
+                                );
+                              },
+                            );
+                            if (mounted && ok) turn(0);
+                          },
+                        )
+                      : const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute<void>(

@@ -173,15 +173,33 @@ class _TeacherRecordingsState extends State<TeacherRecordings> {
                       ? null
                       : () => listen(row['id']),
                 ),
-                trailing:
-                    row['status'] == 'uploaded' || row['evaluasi_id'] != null
-                    ? TextButton(
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (row['status'] != 'file_deleted')
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Hapus audio',
+                        onPressed: () async {
+                          final ok = await confirmAction(context, 'Hapus audio', 'File audio akan dihapus permanen. Nilai dan evaluasi tetap tersimpan.', () async {
+                            await widget.api.request(
+                              "guru/rekaman/${row['id']}",
+                              method: 'DELETE',
+                            );
+                          });
+                          if (mounted && ok) refresh();
+                        },
+                      ),
+                    if (row['status'] == 'uploaded' ||
+                        row['evaluasi_id'] != null)
+                      TextButton(
                         onPressed: () => evaluate(row),
                         child: Text(
                           row['evaluasi_id'] == null ? 'Nilai' : 'Revisi',
                         ),
-                      )
-                    : null,
+                      ),
+                  ],
+                ),
               ),
             if (page > 1)
               TextButton(
@@ -207,7 +225,13 @@ class _TeacherRecordingsState extends State<TeacherRecordings> {
 }
 
 class ClassTestBuilder extends StatefulWidget {
-  const ClassTestBuilder({super.key, required this.api, required this.classId});
+  const ClassTestBuilder({
+    super.key,
+    required this.api,
+    required this.classId,
+    this.draft,
+  });
+  final Map<String, dynamic>? draft;
   final int classId;
   final BacaTepatApi api;
   @override
@@ -230,29 +254,43 @@ class _ClassTestBuilderState extends State<ClassTestBuilder> {
     super.dispose();
   }
 
-  Future<void> publish() async {
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.draft;
+    if (draft == null) return;
+    draftId = draft['id'];
+    title.text = draft['title'];
+    for (final item in draft['soal']) {
+      selected.add(item['question_id']);
+      aspects[item['question_id']] = item['aspect_code'];
+    }
+  }
+
+  Future<void> save({required bool activate}) async {
     if (busy) return;
     setState(() => busy = true);
     try {
-      if (draftId == null) {
-        final response = await widget.api.request(
-          'guru/diagnostik',
-          body: {
-            'kelas_id': widget.classId,
-            'judul': title.text.trim(),
-            'soal': [
-              for (final entry in selected.indexed)
-                {'soal_id': entry.$2, 'urutan': entry.$1 + 1},
-            ],
-          },
-        );
-        draftId = response['data']['id'];
-      }
-      await widget.api.request(
-        'guru/diagnostik/$draftId/status',
-        method: 'PATCH',
-        body: {'status': 'aktif'},
+      final response = await widget.api.request(
+        draftId == null ? 'guru/diagnostik' : 'guru/diagnostik/$draftId',
+        method: draftId == null ? 'POST' : 'PUT',
+        body: {
+          'kelas_id': widget.classId,
+          'judul': title.text.trim(),
+          'soal': [
+            for (final entry in selected.indexed)
+              {'soal_id': entry.$2, 'urutan': entry.$1 + 1},
+          ],
+        },
       );
+      draftId = response['data']['id'];
+      if (activate) {
+        await widget.api.request(
+          'guru/diagnostik/$draftId/status',
+          method: 'PATCH',
+          body: {'status': 'aktif'},
+        );
+      }
       if (mounted) Navigator.pop(context);
     } on ApiError catch (e) {
       if (mounted) {
@@ -274,7 +312,7 @@ class _ClassTestBuilderState extends State<ClassTestBuilder> {
           padding: const EdgeInsets.all(12),
           child: TextField(
             controller: title,
-            enabled: draftId == null,
+            enabled: !busy,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(labelText: 'Judul tes'),
           ),
@@ -297,7 +335,7 @@ class _ClassTestBuilderState extends State<ClassTestBuilder> {
                       title: Text(q['prompt']),
                       subtitle: Text(q['aspect_code']),
                       value: selected.contains(q['id']),
-                      onChanged: draftId != null || busy
+                      onChanged: busy
                           ? null
                           : (value) => setState(() {
                               if (value == true) {
@@ -330,6 +368,12 @@ class _ClassTestBuilderState extends State<ClassTestBuilder> {
             },
           ),
         ),
+        TextButton(
+          onPressed: busy || title.text.trim().isEmpty || selected.isEmpty
+              ? null
+              : () => save(activate: false),
+          child: const Text('Simpan draf'),
+        ),
         SafeArea(
           child: FilledButton(
             onPressed:
@@ -337,7 +381,7 @@ class _ClassTestBuilderState extends State<ClassTestBuilder> {
                     aspects.values.toSet().length < 4 ||
                     title.text.trim().isEmpty
                 ? null
-                : publish,
+                : () => save(activate: true),
             child: Text(
               'Aktifkan tes (${aspects.values.toSet().length}/4 aspek)',
             ),

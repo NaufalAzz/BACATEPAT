@@ -21,6 +21,31 @@ class _AccountHomeState extends State<AccountHome> {
   bool get teacher => widget.user['role'] == 'guru';
   late Future<Map<String, dynamic>> overview = load();
 
+  Future<void> editClass([Map<String, dynamic>? c]) async {
+    final ok = await editForm(
+      context,
+      c == null ? 'Tambah kelas' : 'Ubah kelas',
+      [
+        field('nama_kelas', 'Nama kelas'),
+        field('tingkat', 'Tingkat', ['1', '2', '3']),
+        field('tahun_ajaran', 'Tahun ajaran (2026/2027)'),
+      ],
+      (data) async {
+        await widget.api.request(
+          c == null ? 'guru/kelas' : "guru/kelas/${c['id']}",
+          method: c == null ? 'POST' : 'PUT',
+          body: data,
+        );
+      },
+      initial: {
+        if (c != null)
+          for (final key in ['nama_kelas', 'tingkat', 'tahun_ajaran'])
+            key: c[key].toString(),
+      },
+    );
+    if (mounted && ok) setState(() => overview = load());
+  }
+
   @override
   void initState() {
     super.initState();
@@ -165,21 +190,7 @@ class _AccountHomeState extends State<AccountHome> {
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('Tambah kelas'),
-                onTap: () async {
-                  final ok = await editForm(
-                    context,
-                    'Tambah kelas',
-                    [
-                      field('nama_kelas', 'Nama kelas'),
-                      field('tingkat', 'Tingkat', ['1', '2', '3']),
-                      field('tahun_ajaran', 'Tahun ajaran (2026/2027)'),
-                    ],
-                    (data) async {
-                      await widget.api.request('guru/kelas', body: data);
-                    },
-                  );
-                  if (mounted && ok) setState(() => overview = load());
-                },
+                onTap: () => editClass(),
               ),
               ListTile(
                 leading: const Icon(Icons.headphones),
@@ -233,7 +244,33 @@ class _AccountHomeState extends State<AccountHome> {
                 ListTile(
                   title: Text(c['nama_kelas']),
                   subtitle: Text(c['tahun_ajaran']),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: PopupMenuButton<String>(
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Ubah kelas')),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Hapus kelas'),
+                      ),
+                    ],
+                    onSelected: (action) async {
+                      if (action == 'edit') {
+                        await editClass(c);
+                        return;
+                      }
+                      final ok = await confirmAction(
+                        context,
+                        'Hapus kelas',
+                        c['nama_kelas'],
+                        () async {
+                          await widget.api.request(
+                            "guru/kelas/${c['id']}",
+                            method: 'DELETE',
+                          );
+                        },
+                      );
+                      if (mounted && ok) setState(() => overview = load());
+                    },
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute<void>(
@@ -322,23 +359,56 @@ class _AccountHomeState extends State<AccountHome> {
                   if (mounted) setState(() => overview = load());
                 },
               ),
-            const ListTile(title: Text('Riwayat latihan')),
-            for (final item in data['latihan'])
-              ListTile(
-                title: Text(item['judul']),
-                subtitle: Text('Nilai ${item['nilai'] ?? "menunggu"}'),
-              ),
-            const ListTile(title: Text('Evaluasi guru')),
-            for (final item in data['evaluasi'])
-              ListTile(
-                title: Text(
-                  'Ketepatan ${item['ketepatan']} · Kelancaran ${item['kelancaran']}',
+            ListTile(
+              title: const Text('Evaluasi bacaan'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ApiListPage(
+                    api: widget.api,
+                    title: 'Evaluasi bacaan',
+                    path: 'siswa/evaluasi',
+                    empty: 'Belum ada evaluasi bacaan.',
+                    tile: (_, row, _) => ListTile(
+                      title: Text(row['bacaan']),
+                      subtitle: Text(
+                        [
+                          'Ketepatan ${row['accuracy_score']} · Kelancaran ${row['fluency_score']}',
+                          row['comment'],
+                          row['advice'],
+                        ].whereType<String>().join('\n'),
+                      ),
+                    ),
+                  ),
                 ),
-                subtitle: Text(
-                  [
-                    item['komentar'],
-                    item['saran'],
-                  ].whereType<String>().join('\n'),
+              ),
+            ),
+            for (final kind in ['diagnostik', 'latihan'])
+              ListTile(
+                title: Text('Riwayat $kind'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => ApiListPage(
+                      api: widget.api,
+                      title: 'Riwayat $kind',
+                      path: kind == 'latihan'
+                          ? 'siswa/latihan/riwayat'
+                          : 'siswa/diagnostik/hasil',
+                      empty: 'Belum ada percobaan $kind.',
+                      tile: (_, row, _) => ListTile(
+                        title: Text(row['judul'] ?? 'Tes diagnostik'),
+                        subtitle: Text(
+                          "${row['started_at']} · ${{'completed': 'Selesai', 'in_progress': 'Sedang dikerjakan', 'abandoned': 'Dihentikan', 'waiting_teacher': 'Menunggu penilaian Guru'}[row['status']] ?? row['status']}",
+                        ),
+                        trailing: Text(
+                          row['skor'] == null ? '–' : '${row['skor']}',
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
           ],

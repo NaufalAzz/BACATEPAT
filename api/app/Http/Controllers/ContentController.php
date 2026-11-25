@@ -152,6 +152,15 @@ class ContentController
         return $query->orderByDesc('id')->paginate(30);
     }
 
+    public function testDetail(Request $request, int $id)
+    {
+        $test = $this->owned('diagnostic_tests', $request)->where('id', $id)->firstOrFail();
+        $test->soal = DB::table('diagnostic_test_questions as t')->join('questions as q', 'q.id', '=', 't.question_id')
+            ->where('t.diagnostic_test_id', $id)->orderBy('t.position')->get(['t.question_id', 'q.aspect_code']);
+
+        return ['data' => $test];
+    }
+
     public function createTest(Request $request, ?int $id = null)
     {
         $data = $request->validate(['judul' => 'required|string|max:150', 'kelas_id' => ['required', 'integer',
