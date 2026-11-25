@@ -137,6 +137,13 @@ call("PUT", f"guru/evaluasi/{evaluation_id}",dict(revision,komentar="Versi lama"
 call("PUT", f"guru/evaluasi/{evaluation_id}",revision,student,403)
 assert float(call("POST",f"siswa/latihan/{oral_attempt}/selesai",{},student)["data"]["skor"]) == 90
 assert call("GET","siswa/evaluasi",token=student)["data"][0]["comment"] == "Direvisi"
+# Follow the same class/profile paths as the teacher dashboard.
+assert call("GET","guru/dashboard",token=teacher)["data"]["siswa"] >= 1
+history = f"guru/siswa/{student_id}"
+assert call("GET",history+"/diagnostik",token=teacher)["data"][0]["judul"] == suffix
+assert call("GET",history+"/latihan",token=teacher)["data"][0]["judul"] == "Baca kata"
+assert call("GET",history+"/evaluasi",token=teacher)["data"][0]["comment"] == "Direvisi"
+call("GET",history+"/evaluasi",token=student,expected=403)
 for token in [student, teacher]:
     call("POST", "auth/logout", {}, token)
     call("GET", "auth/me", token=token, expected=401)

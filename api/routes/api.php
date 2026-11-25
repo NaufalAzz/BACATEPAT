@@ -67,6 +67,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('siswa', [StudentAdminController::class, 'create']);
         Route::get('siswa/{id}', [StudentAdminController::class, 'detail']);
         Route::put('siswa/{id}', [StudentAdminController::class, 'edit']);
+        Route::get('siswa/{id}/evaluasi', [ActivityController::class, 'evaluations']);
         Route::get('siswa/{id}/diagnostik', [ActivityController::class, 'diagnostic']);
         Route::patch('siswa/{id}/kelas', [StudentAdminController::class, 'transfer']);
         Route::get('siswa/{id}/latihan', [ActivityController::class, 'practice']);

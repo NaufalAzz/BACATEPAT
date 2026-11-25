@@ -36,7 +36,12 @@ class _AccountHomeState extends State<AccountHome> {
   Future<Map<String, dynamic>> load() async {
     final response = await widget.api.request('auth/me');
     profile = response['data'];
-    return widget.api.request(teacher ? 'guru/kelas' : 'siswa/beranda');
+    if (!teacher) return widget.api.request('siswa/beranda');
+    final responses = await Future.wait([
+      widget.api.request('guru/kelas'),
+      widget.api.request('guru/dashboard'),
+    ]);
+    return {'data': responses.first['data'], 'summary': responses.last['data']};
   }
 
   void exit() =>
@@ -137,9 +142,16 @@ class _AccountHomeState extends State<AccountHome> {
         final data = state.requireData['data'];
         if (teacher) {
           final classes = data as List;
+          final summary = state.requireData['summary'];
 
           return ListView(
             children: [
+              ListTile(
+                title: const Text('Ringkasan kelas'),
+                subtitle: Text(
+                  "${summary['kelas']} kelas · ${summary['siswa']} siswa · ${summary['tes_aktif']} tes aktif",
+                ),
+              ),
               ListTile(
                 leading: const Icon(Icons.library_books),
                 title: const Text('Materi dan soal'),
@@ -423,6 +435,69 @@ class _ClassRosterState extends State<ClassRoster> {
         final result = state.requireData;
         return ListView(
           children: [
+            ListTile(
+              title: const Text('Grafik perkembangan kelas'),
+              trailing: const Icon(Icons.bar_chart),
+              onTap: () {
+                final progress = widget.api.request(
+                  'guru/perkembangan/kelas/${widget.id}',
+                );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(
+                        title: Text('Perkembangan kelas ${widget.name}'),
+                      ),
+                      body: FutureBuilder(
+                        future: progress,
+                        builder: (context, state) {
+                          if (state.hasError) {
+                            return Center(child: Text(state.error.toString()));
+                          }
+                          if (!state.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final groups = state.requireData['data'];
+                          if (groups is! Map || groups.isEmpty) {
+                            return const Center(
+                              child: Text('Belum ada hasil belajar kelas ini.'),
+                            );
+                          }
+                          return ListView(
+                            children: [
+                              for (final entry in groups.entries)
+                                ListTile(
+                                  title: Text(
+                                    entry.key.toString().replaceAll('_', ' '),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Rata-rata ${entry.value['rata_rata']} dari ${entry.value['jumlah_pengamatan']} pengamatan",
+                                      ),
+                                      LinearProgressIndicator(
+                                        value:
+                                            (entry.value['rata_rata'] as num)
+                                                .toDouble() /
+                                            100,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
             ListTile(
               title: const Text('Hasil diagnostik'),
               trailing: const Icon(Icons.chevron_right),

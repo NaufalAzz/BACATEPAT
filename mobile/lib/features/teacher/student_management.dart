@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/bacatepat_api.dart';
 import 'learning_results.dart';
+import '../../core/components/api_list_page.dart';
 import 'server_teacher_tools.dart';
 
 class StudentManagement extends StatefulWidget {
@@ -107,6 +108,56 @@ class _StudentManagementState extends State<StudentManagement> {
               title: Text(s['nama']),
               subtitle: Text("${s['username']} · ${s['status']}"),
             ),
+            ListTile(
+              title: const Text('Evaluasi bacaan'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ApiListPage(
+                    api: widget.api,
+                    title: 'Evaluasi bacaan · ${s['nama']}',
+                    path: '$path/evaluasi',
+                    empty: 'Belum ada evaluasi bacaan.',
+                    tile: (_, row, _) => ListTile(
+                      title: Text(row['bacaan']),
+                      subtitle: Text(
+                        [
+                          'Ketepatan ${row['accuracy_score']} · Kelancaran ${row['fluency_score']}',
+                          row['comment'],
+                          row['advice'],
+                        ].whereType<String>().join('\n'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            for (final kind in ['diagnostik', 'latihan'])
+              ListTile(
+                title: Text('Riwayat $kind'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => ApiListPage(
+                      api: widget.api,
+                      title: 'Riwayat $kind · ${s['nama']}',
+                      path: '$path/$kind',
+                      empty: 'Belum ada percobaan $kind.',
+                      tile: (_, row, _) => ListTile(
+                        title: Text(row['judul']),
+                        subtitle: Text(
+                          "${row['started_at']} · ${{'completed': 'Selesai', 'in_progress': 'Sedang dikerjakan', 'abandoned': 'Dihentikan', 'waiting_teacher': 'Menunggu penilaian Guru'}[row['status']] ?? row['status']}",
+                        ),
+                        trailing: Text(
+                          row['skor'] == null ? '–' : '${row['skor']}',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ListTile(
               title: const Text('Perkembangan dan laporan'),
               onTap: () => Navigator.push(
