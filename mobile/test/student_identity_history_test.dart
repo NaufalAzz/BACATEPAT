@@ -78,12 +78,12 @@ void main() {
   test(
     'demo login resolves distinct student accounts and teacher identity',
     () {
-      expect(teacher.authenticateStudent('andi.1a', 'demo'), isTrue);
-      expect(teacher.authenticateStudent('siti.1a', 'demo'), isTrue);
-      expect(teacher.authenticateStudent('andi.1a', 'wrong'), isFalse);
+      expect(teacher.authenticateStudent('andi', 'bolabiru'), isTrue);
+      expect(teacher.authenticateStudent('siti', 'sapipagi'), isTrue);
+      expect(teacher.authenticateStudent('andi', 'wrong'), isFalse);
       expect(teacher.authenticateStudent('missing', 'demo'), isFalse);
-      expect(teacher.authenticateTeacher('guru-demo', 'demo'), isTrue);
-      expect(teacher.authenticateTeacher('guru-demo', 'wrong'), isFalse);
+      expect(teacher.authenticateTeacher('burina', 'rumahmelati'), isTrue);
+      expect(teacher.authenticateTeacher('burina', 'wrong'), isFalse);
     },
   );
 

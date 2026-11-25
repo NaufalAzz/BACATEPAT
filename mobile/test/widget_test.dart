@@ -145,11 +145,11 @@ void main() {
     expect(find.text('Masuk ke ruang kelas'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('login-username')),
-      'guru-demo',
+      'burina',
     );
     await tester.enterText(
       find.byKey(const ValueKey('login-password')),
-      'demo',
+      'rumahmelati',
     );
     await tester.tap(find.byKey(const ValueKey('login-submit')));
     await tester.pumpAndSettle();
@@ -166,11 +166,11 @@ void main() {
     expect(find.text('Siap membaca hari ini?'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('login-username')),
-      'andi.1a',
+      'andi',
     );
     await tester.enterText(
       find.byKey(const ValueKey('login-password')),
-      'demo',
+      'bolabiru',
     );
     await tester.tap(find.byKey(const ValueKey('login-submit')));
     await tester.pumpAndSettle();

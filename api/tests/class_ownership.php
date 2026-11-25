@@ -20,7 +20,7 @@ try {
     $teacher->forceFill(['name' => 'Guru kelas lain', 'username' => 'test.'.bin2hex(random_bytes(6)),
         'role' => 'guru', 'status' => 'aktif', 'password_hash' => Hash::make(bin2hex(random_bytes(32)))])->save();
     $token = $teacher->createToken('integration')->plainTextToken;
-    $student = DB::table('students as s')->join('users as u', 's.user_id', '=', 'u.id')->where('u.username', 'demo.siswa.andi')->firstOrFail(['s.id', 's.current_class_id']);
+    $student = DB::table('students as s')->join('users as u', 's.user_id', '=', 'u.id')->where('u.username', 'andi')->firstOrFail(['s.id', 's.current_class_id']);
     $record = DB::table('voice_recordings')->where('student_id', $student->id)->firstOrFail();
     $evaluation = DB::table('audio_evaluations')->where('recording_id', $record->id)->value('id');
     $checks = [

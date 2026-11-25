@@ -248,23 +248,25 @@ cmd.exe /c "mysql -u root -p bacatepat < database\bacatepat_demo_seed.sql"
 
 Periksa server dan target database sebelum import. Akun DB memerlukan hak untuk membuat schema/tabel. Seed menggunakan ID tetap dalam rentang 900001–909999 dan `INSERT IGNORE`: baris yang sudah ada tidak diperbarui, sementara impor ulang tidak menambah baris. Rerun pada schema yang sama menghasilkan peringatan duplicate-key 1062 yang disengaja dari `INSERT IGNORE`; data tidak berubah. Karena ID-nya tetap, jangan gunakan seed ini untuk database berisi data atau jika rentang tersebut sudah dipakai.
 
-### Akun demo
+Database lokal yang sudah memakai seed lama dapat diperbarui dengan `database/upgrade_local_classroom.sql`.
 
-Semua akun di bawah memakai password demo yang sama: **`BacaTepatDemo26!`**. Kolom `users.password_hash` berisi bcrypt `$2y$10$...`; tidak ada password plaintext tersimpan di database. Kredensial hanya untuk pengembangan lokal, bukan untuk akun sungguhan.
+### Akun lokal
 
-| Role | Username | Nama | Kelas |
-|---|---|---|---|
-| Guru | `demo.guru.rina` | Rina Marlina | 1A, 2A, 3A |
-| Siswa | `demo.siswa.andi` | Andi Pratama | 1A |
-| Siswa | `demo.siswa.siti` | Siti Aisyah | 1A |
-| Siswa | `demo.siswa.bunga` | Bunga Lestari | 2A |
-| Siswa | `demo.siswa.dimas` | Dimas Saputra | 2A |
-| Siswa | `demo.siswa.raka` | Raka Pranata | 3A |
-| Siswa | `demo.siswa.lina` | Lina Maharani | 3A |
+Kredensial berikut untuk kelas pengembangan. Akun sekolah dibuat melalui perintah `guru:buat` dan menu siswa milik guru.
+
+| Role | Username | Kata sandi | Nama | Kelas |
+|---|---|---|---|---|
+| Guru | `burina` | `rumahmelati` | Rina Marlina | 1A, 2A, 3A |
+| Siswa | `andi` | `bolabiru` | Andi Pratama | 1A |
+| Siswa | `siti` | `sapipagi` | Siti Aisyah | 1A |
+| Siswa | `bunga` | `bukusaku` | Bunga Lestari | 2A |
+| Siswa | `dimas` | `rotisusu` | Dimas Saputra | 2A |
+| Siswa | `raka` | `topibiru` | Raka Pranata | 3A |
+| Siswa | `lina` | `mejakayu` | Lina Maharani | 3A |
 
 ### Isi seed dan hasil pemeriksaan
 
-Seed membuat tiga kelas, enam profil siswa dengan membership dan event persetujuan wali, 12 materi aktif, 27 soal (25 pilihan ganda dan 2 baca lisan), 75 opsi, tiga paket diagnostik, enam attempt diagnostik dengan snapshot 16 soal per siswa, tujuh attempt latihan (lima pilihan ganda dan dua baca lisan) beserta snapshot, 31 catatan mastery, 11 rekomendasi (lima selesai dan enam aktif), serta dua metadata rekaman dan dua evaluasi Guru beserta revisinya. Satu rekomendasi aktif adalah override Guru untuk Lina, lengkap dengan alasan dan `created_by_teacher_id`.
+Seed membuat tiga kelas, enam profil siswa dengan membership dan event persetujuan wali, 15 materi aktif, 27 soal (25 pilihan ganda dan 2 baca lisan), 75 opsi, tiga paket diagnostik, enam attempt diagnostik dengan snapshot 16 soal per siswa, tujuh attempt latihan (lima pilihan ganda dan dua baca lisan) beserta snapshot, 31 catatan mastery, 11 rekomendasi (lima selesai dan enam aktif), serta dua metadata rekaman dan dua evaluasi Guru beserta revisinya. Satu rekomendasi aktif adalah override Guru untuk Lina, lengkap dengan alasan dan `created_by_teacher_id`.
 
 Contoh alur: hasil diagnostik Andi 31,25 dengan aspek suku kata 25 mengarah ke materi suku kata tingkat 1. Skor latihan 40 menutup rekomendasi awal dan menghasilkan rekomendasi mengulang materi yang sama. Siti mendapat diagnostik 75 dan latihan 60, sehingga diarahkan ke materi variasi pada aspek dan tingkat yang sama. Dimas mendapat diagnostik 68,75 lalu latihan kata 100; karena baru satu skor latihan minimal 80, rekomendasinya variasi kata tingkat 1, belum naik tingkat. Contoh latihan lain bernilai 80 dan 100; tidak ada contoh streak dua latihan ≥80 sehingga seed tidak menyatakan kenaikan tingkat.
 

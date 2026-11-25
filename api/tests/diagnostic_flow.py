@@ -41,7 +41,7 @@ def login(name):
                                        "device_name": "integration"})["data"]["token"]
 
 
-teacher = login("demo.guru.rina")
+teacher = login("burina")
 room = call("POST", "guru/kelas", {"nama_kelas": suffix, "tingkat": 1,
                                    "tahun_ajaran": "2026/2027"}, teacher, 201)["data"]["id"]
 username = "test." + suffix

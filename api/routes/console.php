@@ -52,3 +52,26 @@ Artisan::command('guru:buat {username} {nama}', function () {
 
     return 0;
 })->purpose('Buat akun guru melalui terminal server.');
+
+Artisan::command('materi:kurikulum {username}', function () {
+    $catalog = json_decode(file_get_contents(resource_path('materi-kurikulum.json')), true, flags: JSON_THROW_ON_ERROR);
+    return DB::transaction(function () use ($catalog) {
+        $teacher = DB::table('users')->where('username', $this->argument('username'))
+            ->where('role', 'guru')->lockForUpdate()->first();
+        if (! $teacher) {
+            $this->error('Akun guru tidak ditemukan.');
+            return 1;
+        }
+        $added = 0;
+        foreach ($catalog as $material) {
+            if (DB::table('materials')->where('teacher_id', $teacher->id)->where('title', $material['title'])->exists()) {
+                continue;
+            }
+            DB::table('materials')->insert($material + ['teacher_id' => $teacher->id,
+                'status' => 'active', 'ai_generated' => false, 'created_at' => now(), 'updated_at' => now()]);
+            $added++;
+        }
+        $this->info("Materi ditambahkan: {$added}.");
+        return 0;
+    });
+})->purpose('Tambahkan bacaan Bahasa Indonesia kelas 1–3 ke katalog guru.');

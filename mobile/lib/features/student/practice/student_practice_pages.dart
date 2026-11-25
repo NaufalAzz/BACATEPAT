@@ -236,6 +236,7 @@ class StudentMaterialDetailPage extends StatelessWidget {
           q.status == 'disetujui' &&
           q.usage != 'diagnostik',
     );
+    final reading = material.content.split('\nSumber: ');
     final hasPracticeQuestions = LearningSession.enabled
         ? catalog.isNotEmpty && catalog.every((q) => q.type == 'Pilihan ganda')
         : store.practiceQuestionsForMaterial(material.id).isNotEmpty;
@@ -319,7 +320,7 @@ class StudentMaterialDetailPage extends StatelessWidget {
               const SizedBox(height: AppTokens.space12),
               Center(
                 child: Text(
-                  material.content.replaceAll(' • ', '    '),
+                  reading.first.replaceAll(' • ', '    '),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.displaySmall
                       ?.copyWith(height: 1.5),
@@ -333,6 +334,12 @@ class StudentMaterialDetailPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppTokens.space16),
+        if (reading.length > 1)
+          ExpansionTile(
+            title: const Text('Sumber bacaan'),
+            childrenPadding: const EdgeInsets.all(16),
+            children: [SelectableText(reading.skip(1).join(' '))],
+          ),
         if (hasPracticeQuestions)
           StudentAction(
             key: const ValueKey('material-start-exercise'),

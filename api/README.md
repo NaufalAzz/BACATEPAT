@@ -76,3 +76,5 @@ Pengujian tambahan menggunakan BACATEPAT_INTEGRATION_TEST=1 dan database penguji
 | `php tests/class_ownership.php` | Guru kelas lain tidak bisa membaca data siswa atau mengubah evaluasinya. |
 | `php tests/audio_retention.php` | File yang jatuh tempo dihapus, dan nilai evaluasi tetap dapat dibaca. |
 | `php tests/ai_worker.php` | Draf tetap menunggu review, retry tidak menggandakan materi, izin AI diperiksa, dan transkrip simulasi dibandingkan dengan bacaan target. |
+
+Untuk menambahkan tiga materi Bahasa Indonesia dari buku Pusat Perbukuan ke akun guru sekolah, jalankan `php artisan materi:kurikulum USERNAME_GURU`. Perintah ini melewati judul yang sudah ada pada katalog guru tersebut.

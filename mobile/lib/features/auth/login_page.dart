@@ -94,11 +94,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _simulateExpiredSession() {
-    AppSession.end();
-    Navigator.pushNamedAndRemoveUntil(context, '/welcome', (_) => false);
-  }
-
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _isTeacher
@@ -197,7 +192,7 @@ class _LoginPageState extends State<LoginPage> {
             contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? 'Isi nama pengguna untuk pratinjau'
+              ? 'Isi nama pengguna'
               : null,
         ),
         const SizedBox(height: 16),
@@ -229,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           validator: (value) => value == null || value.isEmpty
-              ? 'Isi kata sandi untuk pratinjau'
+              ? 'Isi kata sandi'
               : null,
         ),
         const SizedBox(height: 18),
@@ -255,42 +250,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 4,
-          runSpacing: 0,
-          children: [
-            TextButton(
-              onPressed: _showInvalidLogin,
-              style: TextButton.styleFrom(
-                foregroundColor: AppTokens.secondary,
-                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                minimumSize: const Size(30, 28),
-                textStyle: const TextStyle(
-                  fontSize: 9,
-                  decoration: TextDecoration.underline,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              child: const Text('Simulasi kredensial salah'),
-            ),
-            TextButton(
-              onPressed: _simulateExpiredSession,
-              style: TextButton.styleFrom(
-                foregroundColor: AppTokens.secondary,
-                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                minimumSize: const Size(30, 28),
-                textStyle: const TextStyle(
-                  fontSize: 9,
-                  decoration: TextDecoration.underline,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              child: const Text('Simulasi sesi berakhir'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
         const Divider(height: 1, color: Color(0xFFDDE5E2)),
         const SizedBox(height: 10),
         Row(
@@ -311,10 +270,10 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: () => _selectRole(!_isTeacher),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
-                minimumSize: const Size(48, 36),
+                minimumSize: const Size(48, 48),
               ),
               child: Text(
-                _isTeacher ? 'Buka demo Siswa  ›' : 'Buka demo Guru  ›',
+                _isTeacher ? 'Masuk sebagai siswa  ›' : 'Masuk sebagai guru  ›',
                 style: const TextStyle(
                   color: AppTokens.secondary,
                   fontSize: 11,

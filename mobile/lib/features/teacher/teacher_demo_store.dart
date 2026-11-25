@@ -24,7 +24,7 @@ class DemoStudent {
     required this.userId,
     required this.name,
     required this.username,
-    this.password = 'demo',
+    this.password = '',
     required this.classId,
     required this.guardianName,
     required this.parentConsent,
@@ -330,7 +330,8 @@ final class TeacherDemoStore extends ChangeNotifier {
       id: 1,
       userId: 101,
       name: 'Andi Pratama',
-      username: 'andi.1a',
+      username: 'andi',
+      password: 'bolabiru',
       classId: 1,
       guardianName: 'Bapak Pratama',
       parentConsent: true,
@@ -340,7 +341,8 @@ final class TeacherDemoStore extends ChangeNotifier {
       id: 2,
       userId: 102,
       name: 'Siti Aisyah',
-      username: 'siti.1a',
+      username: 'siti',
+      password: 'sapipagi',
       classId: 1,
       guardianName: 'Ibu Aminah',
       parentConsent: true,
@@ -350,7 +352,8 @@ final class TeacherDemoStore extends ChangeNotifier {
       id: 3,
       userId: 103,
       name: 'Bunga Lestari',
-      username: 'bunga.2a',
+      username: 'bunga',
+      password: 'bukusaku',
       classId: 2,
       guardianName: 'Ibu Lestari',
       parentConsent: false,
@@ -360,7 +363,8 @@ final class TeacherDemoStore extends ChangeNotifier {
       id: 4,
       userId: 104,
       name: 'Dimas Saputra',
-      username: 'dimas.3a',
+      username: 'dimas',
+      password: 'rotisusu',
       classId: 3,
       guardianName: 'Bapak Saputra',
       parentConsent: true,
@@ -403,6 +407,27 @@ final class TeacherDemoStore extends ChangeNotifier {
       aspect: 'huruf',
       level: 1,
       content: 'a • i • u • e • o\nContoh: ayam • ikan • ular • ember • obat',
+    ),
+    DemoMaterial(
+      id: 6,
+      title: 'Kelas 1 · Bunyi Apa?',
+      aspect: 'suku_kata',
+      level: 1,
+      content: '“Itu bola Boni. Bola Boni biru. Bola kena batu.” Baca bersama gurumu. Apa warna bola Boni?\nSumber: Kutipan dari Bahasa Indonesia Aku Bisa!, Bab 1, Pusat Perbukuan. Buku audio: https://buku.kemendikdasmen.go.id/katalog/buku-audio-bahasa-indonesia-aku-bisa-untuk-sd-mi-kelas-i-edisi-revisi',
+    ),
+    DemoMaterial(
+      id: 7,
+      title: 'Kelas 2 · Mengenal Perasaan',
+      aspect: 'kata',
+      level: 1,
+      content: '“Bagaimana perasaanmu saat bertemu guru dan teman-temanmu di sekolah hari ini?” Pilih satu kata: senang, sedih, atau takut.\nSumber: Kutipan dari Bahasa Indonesia Keluargaku Unik, Bab 1. Buku siswa: https://static-sc.cloudapp.web.id/content/pdf/bukuteks/kurikulum21/Indonesia_BS_KLS_II_Rev.pdf',
+    ),
+    DemoMaterial(
+      id: 8,
+      title: 'Kelas 3 · Ayo, Main!',
+      aspect: 'kalimat',
+      level: 2,
+      content: 'Sebutkan permainan kesukaanmu. Jelaskan cara bermain kepada temanmu. Minta ia mencoba mengikuti petunjukmu.\nSumber: Adaptasi dari Bahasa Indonesia Kawan Seiring, Bab I, Pusat Perbukuan (2022). Katalog: https://buku.kemendikdasmen.go.id/',
     ),
   ];
 
@@ -685,7 +710,7 @@ final class TeacherDemoStore extends ChangeNotifier {
   int _studentId = 5;
   int _userId = 105;
   int _classId = 4;
-  int _materialId = 6;
+  int _materialId = 9;
   int _questionId = 10;
   int _diagnosticId = 3;
 
@@ -696,10 +721,10 @@ final class TeacherDemoStore extends ChangeNotifier {
     (item) => item.username.toLowerCase() == username.trim().toLowerCase(),
   );
   bool authenticateTeacher(String username, String password) =>
-      username.trim() == 'guru-demo' && password == 'demo';
+      username.trim() == 'burina' && password == 'rumahmelati';
   bool authenticateStudent(String username, String password) {
     final student = studentByUsername(username);
-    return student != null && student.active && student.password == password;
+    return password.isNotEmpty && student != null && student.active && student.password == password;
   }
 
   DemoClass? classById(int id) =>
@@ -793,7 +818,7 @@ final class TeacherDemoStore extends ChangeNotifier {
           userId: _userId++,
           name: name,
           username: username,
-          password: password ?? 'demo',
+          password: password ?? '',
           classId: classId,
           guardianName: guardianName,
           parentConsent: parentConsent,

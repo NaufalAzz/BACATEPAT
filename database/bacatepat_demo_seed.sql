@@ -8,18 +8,17 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 SET time_zone = '+00:00';
 START TRANSACTION;
 
--- One teacher and six fictional students. All demo accounts share the same
--- bcrypt hash; see README_DATABASE.md for the demo password.
+-- Local classroom accounts; credentials are listed in README_DATABASE.md.
 INSERT IGNORE INTO users
   (id, name, username, email, password_hash, role, status, created_at, updated_at)
 VALUES
-  (900001, 'Rina Marlina', 'demo.guru.rina', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'guru', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
-  (900002, 'Andi Pratama', 'demo.siswa.andi', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
-  (900003, 'Siti Aisyah', 'demo.siswa.siti', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
-  (900004, 'Bunga Lestari', 'demo.siswa.bunga', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
-  (900005, 'Dimas Saputra', 'demo.siswa.dimas', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
-  (900006, 'Raka Pranata', 'demo.siswa.raka', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
-  (900007, 'Lina Maharani', 'demo.siswa.lina', NULL, '$2y$10$VHAybfj1VylQOnlwIuoPgeAh/QdTexk.q8jynPIR5GL0sJQmwESx6', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00');
+  (900001, 'Rina Marlina', 'burina', NULL, '$2y$10$Oh8sGV9OZo//pNyM3SyFU./x.keG5DMBg/x5gw.DeWyyUSKWzhY2a', 'guru', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
+  (900002, 'Andi Pratama', 'andi', NULL, '$2y$10$hUy4Y2ET7XU5AM4rioZbbugYzX85t.lm6K4XCne7kwBWwsHNBAFAO', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
+  (900003, 'Siti Aisyah', 'siti', NULL, '$2y$10$MFz9EHlN6iR9kdg2HM9PyeWNF9V/o6yYVKhKY27gTKvfDaBr8tg0u', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
+  (900004, 'Bunga Lestari', 'bunga', NULL, '$2y$10$gntEUO/tr3gVL7A9sQQDm.aKXhhYVn1uD7Kxqoxgs/UW5C5B2i7ey', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
+  (900005, 'Dimas Saputra', 'dimas', NULL, '$2y$10$dLDogXw5UNN.vgkQvRWDC.HfXXYeBgKsrycH3IbU.oWlvBXICnwFW', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
+  (900006, 'Raka Pranata', 'raka', NULL, '$2y$10$rFNlbPWeyjEuAwV.RdAkku5o1y7xeLSOtKkkhhI/peighIfGNTO0y', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00'),
+  (900007, 'Lina Maharani', 'lina', NULL, '$2y$10$0RZGXgX/BUmDjtREzJDyiOs3IGlfTTI66CdJ2zTWFGjfWmrgscOcG', 'siswa', 'aktif', '2026-11-20 08:00:00', '2026-11-20 08:00:00');
 
 INSERT IGNORE INTO classes
   (id, teacher_id, name, grade, school_year, status, created_at, updated_at)
@@ -73,6 +72,14 @@ VALUES
   (900510, 900001, 'kata', 1, 'Variasi kata benda', 'Latihan tambahan membaca kata benda di rumah dan sekolah.', 0, 'active', '2026-11-20 09:37:00', '2026-11-20 09:37:00'),
   (900511, 900001, 'kalimat', 1, 'Variasi kalimat pendek', 'Latihan tambahan memahami urutan kata dalam kalimat pendek.', 0, 'active', '2026-11-20 09:38:00', '2026-11-20 09:38:00'),
   (900512, 900001, 'huruf', 1, 'Variasi bunyi huruf', 'Latihan tambahan mengenali huruf awal pada bunyi sederhana.', 0, 'active', '2026-11-20 09:39:00', '2026-11-20 09:39:00');
+
+INSERT IGNORE INTO materials (id, teacher_id, aspect_code, level, title, content, ai_generated, status, created_at, updated_at) VALUES
+(900513, 900001, 'suku_kata', 1, 'Kelas 1 · Bunyi Apa?', '“Itu bola Boni. Bola Boni biru. Bola kena batu.” Baca bersama gurumu. Apa warna bola Boni?
+Sumber: Kutipan dari Bahasa Indonesia Aku Bisa!, Bab 1, Pusat Perbukuan. Buku audio: https://buku.kemendikdasmen.go.id/katalog/buku-audio-bahasa-indonesia-aku-bisa-untuk-sd-mi-kelas-i-edisi-revisi', 0, 'active', NOW(), NOW()),
+(900514, 900001, 'kata', 1, 'Kelas 2 · Mengenal Perasaan', '“Bagaimana perasaanmu saat bertemu guru dan teman-temanmu di sekolah hari ini?” Pilih satu kata: senang, sedih, atau takut.
+Sumber: Kutipan dari Bahasa Indonesia Keluargaku Unik, Bab 1. Buku siswa: https://static-sc.cloudapp.web.id/content/pdf/bukuteks/kurikulum21/Indonesia_BS_KLS_II_Rev.pdf', 0, 'active', NOW(), NOW()),
+(900515, 900001, 'kalimat', 2, 'Kelas 3 · Ayo, Main!', 'Sebutkan permainan kesukaanmu. Jelaskan cara bermain kepada temanmu. Minta ia mencoba mengikuti petunjukmu.
+Sumber: Adaptasi dari Bahasa Indonesia Kawan Seiring, Bab I, Pusat Perbukuan (2022). Katalog: https://buku.kemendikdasmen.go.id/', 0, 'active', NOW(), NOW());
 
 INSERT IGNORE INTO questions
   (id, teacher_id, material_id, aspect_code, level, question_type, usage_scope, prompt, stimulus_text, target_text, hint, explanation, ai_generated, review_status, reviewed_by_teacher_id, reviewed_at, created_at, updated_at)

@@ -18,7 +18,7 @@ Http::preventStrayRequests();
 config(['services.learning_ai.key' => 'test-only', 'services.learning_ai.model' => 'test-model', 'services.learning_ai.audio_model' => 'test-speech']);
 DB::beginTransaction();
 try {
-    $teacher = DB::table('users')->where('username', 'demo.guru.rina')->value('id');
+    $teacher = DB::table('users')->where('username', 'burina')->value('id');
     $request = DB::table('ai_draft_requests')->insertGetId(['teacher_id' => $teacher, 'kind' => 'materi', 'parameters' => json_encode(['aspek' => 'huruf', 'tingkat' => 1, 'tema' => 'buah', 'jumlah' => 1]), 'created_at' => now(), 'updated_at' => now()]);
     Http::fake(['*/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode(['items' => [['judul' => 'A', 'konten' => 'Apel']]])]]]])]);
     $job = new GenerateDrafts($request);
