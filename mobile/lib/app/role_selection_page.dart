@@ -179,15 +179,15 @@ class _WelcomeIllustration extends StatelessWidget {
       return Center(
         child: SizedBox(
           key: const ValueKey('welcome-book-animation'),
-          width: 220,
+          width: 240,
           height: 220,
           child: Stack(
             alignment: Alignment.center,
-            clipBehavior: Clip.hardEdge,
+            clipBehavior: Clip.none,
             children: [
               CustomPaint(
                 key: const ValueKey('welcome-story-orbit'),
-                size: const Size(220, 220),
+                size: const Size(240, 220),
                 painter: _StoryOrbitPainter(progress: progress),
               ),
               Transform.translate(
@@ -212,8 +212,8 @@ class _WelcomeIllustration extends StatelessWidget {
               _StoryLetter(
                 id: 'b',
                 asset: 'assets/illustrations/welcome-letter-b.png',
-                target: const Offset(4, 2),
-                origin: const Offset(68, 60),
+                target: const Offset(14, 26),
+                origin: const Offset(78, 70),
                 start: .14,
                 finish: .59,
                 arc: -30,
@@ -223,8 +223,8 @@ class _WelcomeIllustration extends StatelessWidget {
               _StoryLetter(
                 id: 'a',
                 asset: 'assets/illustrations/welcome-letter-a.png',
-                target: const Offset(168, 2),
-                origin: const Offset(148, 62),
+                target: const Offset(178, 26),
+                origin: const Offset(158, 72),
                 start: .30,
                 finish: .77,
                 arc: -34,
@@ -234,8 +234,8 @@ class _WelcomeIllustration extends StatelessWidget {
               _StoryLetter(
                 id: 'ca',
                 asset: 'assets/illustrations/welcome-letter-ca.png',
-                target: const Offset(4, 168),
-                origin: const Offset(72, 145),
+                target: const Offset(14, 146),
+                origin: const Offset(82, 140),
                 start: .46,
                 finish: .90,
                 arc: 22,

@@ -656,52 +656,46 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
   }
 
   Future<void> _submitCurrentAnswer() async {
-    if (LearningSession.enabled) {
-      if (_busy || _selected == null) return;
-      if (_questionIndex + 1 < _questions.length) {
-        setState(() {
-          if (_isRight) _correct++;
-          _selected = null;
-          _questionIndex++;
-        });
-        return;
-      }
-      _busy = true;
-      try {
-        await LearningSession.api.request(
-          'siswa/latihan/$_remoteId/selesai',
-          body: {},
-        );
-        await LearningSession.refresh();
-        if (!mounted) return;
-        _attempt = StudentDemoStore.instance.practiceHistory.firstWhere(
-          (a) => a.id == _remoteId,
-        );
-        setState(() => _finished = true);
-      } on ApiError catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(e.message)));
-        }
-      } finally {
-        _busy = false;
-      }
-      return;
-    }
-
     final material = _material;
     if (material == null) return;
     final question = _questions[_questionIndex];
     final selected = _selected!;
-    final answer = PracticeAnswerRecord(
-      questionId: question.id,
-      aspect: question.aspect,
-      answer: question.choices[selected],
-      correctAnswer: question.correctAnswer!,
-      isCorrect: selected == question.correctAnswerIndex,
-    );
-    _answers.add(answer);
-    if (answer.isCorrect) _correct++;
+    if (LearningSession.enabled) {
+      if (_busy) return;
+      if (_questionIndex + 1 == _questions.length) {
+        _busy = true;
+        try {
+          await LearningSession.api.request(
+            'siswa/latihan/$_remoteId/selesai',
+            body: {},
+          );
+          await LearningSession.refresh();
+          if (!mounted) return;
+          _attempt = StudentDemoStore.instance.practiceHistory.firstWhere(
+            (a) => a.id == _remoteId,
+          );
+          setState(() => _finished = true);
+        } on ApiError catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(e.message)));
+          }
+        } finally {
+          _busy = false;
+        }
+        return;
+      }
+    } else {
+      final answer = PracticeAnswerRecord(
+        questionId: question.id,
+        aspect: question.aspect,
+        answer: question.choices[selected],
+        correctAnswer: question.correctAnswer!,
+        isCorrect: selected == question.correctAnswerIndex,
+      );
+      _answers.add(answer);
+      if (answer.isCorrect) _correct++;
+    }
 
     if (_questionIndex == _questions.length - 1) {
       _attempt = StudentDemoStore.instance.completePractice(
