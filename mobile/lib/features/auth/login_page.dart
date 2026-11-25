@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_session.dart';
-import '../../core/api/bacatepat_api.dart';
-import 'account_home.dart';
 import '../../app/navigation_plan.dart';
 import '../../core/components/baca_tepat_mark.dart';
 import '../../core/theme/app_tokens.dart';
 import '../teacher/teacher_demo_store.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({required this.role, this.preview = false, super.key});
+  const LoginPage({required this.role, super.key});
   final AppRole role;
-  final bool preview;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -39,37 +36,8 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  bool _busy = false;
-
-  Future<void> _login() async {
-    if (_busy) return;
+  void _enterPreview() {
     if (!_formKey.currentState!.validate()) return;
-    if (!widget.preview) {
-      setState(() => _busy = true);
-      final api = BacaTepatApi();
-      try {
-        final user = await api.login(
-          _usernameController.text.trim(),
-          _passwordController.text,
-          _isTeacher ? 'guru' : 'siswa',
-        );
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(
-            builder: (_) => AccountHome(api: api, user: user),
-          ),
-          (_) => false,
-        );
-      } on ApiError catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(e.message)));
-        }
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
-      return;
-    }
     final store = TeacherDemoStore.instance;
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
@@ -207,7 +175,7 @@ class _LoginPageState extends State<LoginPage> {
             contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? 'Isi nama pengguna'
+              ? 'Isi nama pengguna untuk pratinjau'
               : null,
         ),
         const SizedBox(height: 16),
@@ -218,7 +186,7 @@ class _LoginPageState extends State<LoginPage> {
           controller: _passwordController,
           obscureText: _obscurePassword,
           textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _login(),
+          onFieldSubmitted: (_) => _enterPreview(),
           decoration: InputDecoration(
             hintText: 'Kata sandi',
             contentPadding: const EdgeInsets.symmetric(
@@ -238,15 +206,16 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          validator: (value) =>
-              value == null || value.isEmpty ? 'Isi kata sandi' : null,
+          validator: (value) => value == null || value.isEmpty
+              ? 'Isi kata sandi untuk pratinjau'
+              : null,
         ),
         const SizedBox(height: 18),
         SizedBox(
           height: 48,
           child: FilledButton(
             key: const ValueKey('login-submit'),
-            onPressed: _busy ? null : _login,
+            onPressed: _enterPreview,
             style: FilledButton.styleFrom(
               backgroundColor: _isTeacher
                   ? AppTokens.secondary
@@ -264,48 +233,41 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 10),
-        if (widget.preview)
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 4,
-            runSpacing: 0,
-            children: [
-              TextButton(
-                onPressed: _showInvalidLogin,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.secondary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 3,
-                    vertical: 2,
-                  ),
-                  minimumSize: const Size(30, 28),
-                  textStyle: const TextStyle(
-                    fontSize: 9,
-                    decoration: TextDecoration.underline,
-                    fontWeight: FontWeight.w700,
-                  ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 4,
+          runSpacing: 0,
+          children: [
+            TextButton(
+              onPressed: _showInvalidLogin,
+              style: TextButton.styleFrom(
+                foregroundColor: AppTokens.secondary,
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                minimumSize: const Size(30, 28),
+                textStyle: const TextStyle(
+                  fontSize: 9,
+                  decoration: TextDecoration.underline,
+                  fontWeight: FontWeight.w700,
                 ),
-                child: const Text('Simulasi kredensial salah'),
               ),
-              TextButton(
-                onPressed: _simulateExpiredSession,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.secondary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 3,
-                    vertical: 2,
-                  ),
-                  minimumSize: const Size(30, 28),
-                  textStyle: const TextStyle(
-                    fontSize: 9,
-                    decoration: TextDecoration.underline,
-                    fontWeight: FontWeight.w700,
-                  ),
+              child: const Text('Simulasi kredensial salah'),
+            ),
+            TextButton(
+              onPressed: _simulateExpiredSession,
+              style: TextButton.styleFrom(
+                foregroundColor: AppTokens.secondary,
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                minimumSize: const Size(30, 28),
+                textStyle: const TextStyle(
+                  fontSize: 9,
+                  decoration: TextDecoration.underline,
+                  fontWeight: FontWeight.w700,
                 ),
-                child: const Text('Simulasi sesi berakhir'),
               ),
-            ],
-          ),
+              child: const Text('Simulasi sesi berakhir'),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         const Divider(height: 1, color: Color(0xFFDDE5E2)),
         const SizedBox(height: 10),
@@ -330,11 +292,7 @@ class _LoginPageState extends State<LoginPage> {
                 minimumSize: const Size(48, 36),
               ),
               child: Text(
-                widget.preview
-                    ? (_isTeacher ? 'Buka demo Siswa  ›' : 'Buka demo Guru  ›')
-                    : (_isTeacher
-                          ? 'Masuk sebagai Siswa  ›'
-                          : 'Masuk sebagai Guru  ›'),
+                _isTeacher ? 'Buka demo Siswa  ›' : 'Buka demo Guru  ›',
                 style: const TextStyle(
                   color: AppTokens.secondary,
                   fontSize: 11,

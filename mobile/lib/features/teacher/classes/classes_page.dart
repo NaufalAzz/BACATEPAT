@@ -6,17 +6,7 @@ import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
 
 class ClassesPage extends StatelessWidget {
-  const ClassesPage({
-    super.key,
-    this.rows,
-    this.onAdd,
-    this.onEdit,
-    this.onDelete,
-    this.onOpen,
-  });
-  final List<dynamic>? rows;
-  final VoidCallback? onAdd;
-  final ValueChanged<Map<String, dynamic>>? onEdit, onDelete, onOpen;
+  const ClassesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,13 +17,13 @@ class ClassesPage extends StatelessWidget {
         TeacherPageHeading(
           title: 'Data Kelas',
           subtitle:
-              '${rows?.length ?? store.accessibleClasses.length} kelas${rows == null ? ' • Tahun ajaran 2026/2027' : ''}',
+              '${store.accessibleClasses.length} kelas • Tahun ajaran 2026/2027',
         ),
         BacaButton(
           key: const ValueKey('add-class'),
           label: 'Tambah kelas',
           icon: Icons.add_rounded,
-          onPressed: onAdd ?? () => _editClass(context),
+          onPressed: () => _editClass(context),
         ),
         const SizedBox(height: AppTokens.space16),
         LayoutBuilder(
@@ -47,41 +37,23 @@ class ClassesPage extends StatelessWidget {
               spacing: AppTokens.space12,
               runSpacing: AppTokens.space12,
               children: [
-                if (rows != null)
-                  for (final row in rows!)
-                    SizedBox(
-                      width: width,
-                      child: InkWell(
-                        onTap: () => onOpen!(row),
-                        child: _ClassCard(
-                          id: row['id'],
-                          name: row['nama_kelas'],
-                          grade: row['tingkat'],
-                          count: row['jumlah_siswa'],
-                          year: row['tahun_ajaran'],
-                          onEdit: () => onEdit!(row),
-                          onDelete: () => onDelete!(row),
-                        ),
-                      ),
-                    )
-                else
-                  for (final item in store.accessibleClasses)
-                    SizedBox(
-                      width: width,
-                      child: _ClassCard(
-                        id: item.id,
-                        name: item.name,
-                        grade: item.grade,
-                        count: store.accessibleStudents
-                            .where(
-                              (student) =>
-                                  student.classId == item.id && student.active,
-                            )
-                            .length,
-                        year: item.year,
-                        onEdit: () => _editClass(context, id: item.id),
-                      ),
+                for (final item in store.accessibleClasses)
+                  SizedBox(
+                    width: width,
+                    child: _ClassCard(
+                      id: item.id,
+                      name: item.name,
+                      grade: item.grade,
+                      count: store.accessibleStudents
+                          .where(
+                            (student) =>
+                                student.classId == item.id && student.active,
+                          )
+                          .length,
+                      year: item.year,
+                      onEdit: () => _editClass(context, id: item.id),
                     ),
+                  ),
               ],
             );
           },
@@ -163,7 +135,6 @@ class _ClassCard extends StatelessWidget {
     required this.count,
     required this.year,
     required this.onEdit,
-    this.onDelete,
   });
 
   final int id;
@@ -172,7 +143,6 @@ class _ClassCard extends StatelessWidget {
   final int count;
   final String year;
   final VoidCallback onEdit;
-  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -193,10 +163,6 @@ class _ClassCard extends StatelessWidget {
                 tooltip: 'Aksi kelas',
                 onSelected: (value) {
                   if (value == 'delete') {
-                    if (onDelete != null) {
-                      onDelete!();
-                      return;
-                    }
                     if (store.accessibleStudents.any(
                       (item) => item.classId == id,
                     )) {

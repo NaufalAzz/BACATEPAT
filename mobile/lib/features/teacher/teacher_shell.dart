@@ -7,22 +7,10 @@ import 'teacher_demo_store.dart';
 import 'teacher_feature_page.dart';
 
 class TeacherShell extends StatelessWidget {
-  const TeacherShell({
-    required this.screen,
-    this.arguments,
-    this.body,
-    this.name,
-    this.onSelect,
-    this.pending,
-    super.key,
-  });
+  const TeacherShell({required this.screen, this.arguments, super.key});
 
   final PlannedScreen screen;
   final Object? arguments;
-  final Widget? body;
-  final String? name;
-  final ValueChanged<String>? onSelect;
-  final int? pending;
 
   static const _canvas = Color(0xFFF4F7F6);
 
@@ -42,11 +30,10 @@ class TeacherShell extends StatelessWidget {
       appBar: _appBar(context),
       body: SafeArea(
         top: false,
-        child: body ?? TeacherPageBody(screen: screen, arguments: arguments),
+        child: TeacherPageBody(screen: screen, arguments: arguments),
       ),
       bottomNavigationBar: _TeacherBottomNavigation(
         selected: screen,
-        onSelect: onSelect,
         onMore: () => _showMore(context),
       ),
     ),
@@ -91,7 +78,7 @@ class TeacherShell extends StatelessWidget {
           radius: 16,
           backgroundColor: AppTokens.sky,
           child: Text(
-            (name ?? TeacherDemoStore.instance.teacherName).characters.first
+            TeacherDemoStore.instance.teacherName.characters.first
                 .toUpperCase(),
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
@@ -110,10 +97,7 @@ class TeacherShell extends StatelessWidget {
       ),
       builder: (sheetContext) => SafeArea(
         child: SizedBox(
-          height: (MediaQuery.sizeOf(context).height * .43).clamp(
-            320.0,
-            double.infinity,
-          ),
+          height: MediaQuery.sizeOf(context).height * .43,
           child: Column(
             children: [
               Padding(
@@ -163,8 +147,8 @@ class TeacherShell extends StatelessWidget {
                     crossAxisCount: 2,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    mainAxisExtent: 52,
-
+                    childAspectRatio: 2.35,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
                       for (final destination in [
                         NavigationPlan.teacher.firstWhere(
@@ -197,21 +181,14 @@ class TeacherShell extends StatelessWidget {
                           },
                           icon: _teacherIcon(destination.id),
                           badge: destination.id == 'G13'
-                              ? pending ??
-                                    TeacherDemoStore
-                                        .instance
-                                        .pendingRecordingCount
+                              ? TeacherDemoStore.instance.pendingRecordingCount
                               : null,
                           onTap: () {
                             Navigator.pop(sheetContext);
-                            if (onSelect != null) {
-                              onSelect!(destination.id);
-                            } else {
-                              Navigator.pushReplacementNamed(
-                                context,
-                                destination.path,
-                              );
-                            }
+                            Navigator.pushReplacementNamed(
+                              context,
+                              destination.path,
+                            );
                           },
                         ),
                     ],
@@ -247,11 +224,9 @@ class _TeacherBottomNavigation extends StatelessWidget {
   const _TeacherBottomNavigation({
     required this.selected,
     required this.onMore,
-    this.onSelect,
   });
   final PlannedScreen selected;
   final VoidCallback onMore;
-  final ValueChanged<String>? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -288,13 +263,7 @@ class _TeacherBottomNavigation extends StatelessWidget {
   Widget _item(BuildContext context, String id, bool isSelected) {
     final page = NavigationPlan.teacher.firstWhere((item) => item.id == id);
     return InkWell(
-      onTap: () {
-        if (onSelect != null) {
-          onSelect!(id);
-        } else {
-          Navigator.pushReplacementNamed(context, page.path);
-        }
-      },
+      onTap: () => Navigator.pushReplacementNamed(context, page.path),
       child: _NavItem(
         icon: _teacherIcon(id),
         label: switch (id) {

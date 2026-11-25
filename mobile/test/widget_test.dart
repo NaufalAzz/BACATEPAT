@@ -21,7 +21,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const BacaTepatApp(preview: true));
+    await tester.pumpWidget(const BacaTepatApp());
     await tester.pump();
     expect(find.byKey(const ValueKey('welcome-skip')), findsOneWidget);
     expect(find.text('Siap membaca hari ini?'), findsNothing);
@@ -132,7 +132,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const BacaTepatApp(preview: true));
+    await tester.pumpWidget(const BacaTepatApp());
     await tester.pump();
     expect(find.byKey(const ValueKey('welcome-skip')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('welcome-skip')));
@@ -336,7 +336,7 @@ Future<void> _openRoute(
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, width == 1280 ? 900 : 844);
-  await tester.pumpWidget(const BacaTepatApp(preview: true));
+  await tester.pumpWidget(const BacaTepatApp());
   await tester.pump();
   AppSession.end();
   StudentDemoStore.instance.resetForTests();

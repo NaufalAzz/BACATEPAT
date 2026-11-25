@@ -9,22 +9,7 @@ import '../question_audio_button.dart';
 import '../student_widgets.dart';
 
 class StudentPracticeListPage extends StatefulWidget {
-  const StudentPracticeListPage({
-    super.key,
-    this.catalog,
-    this.recommendedId,
-    this.reason,
-    this.hasDiagnostic,
-    this.completeBaseline,
-    this.onOpen,
-    this.scores,
-  });
-  final List<DemoMaterial>? catalog;
-  final int? recommendedId;
-  final String? reason;
-  final bool? hasDiagnostic, completeBaseline;
-  final ValueChanged<DemoMaterial>? onOpen;
-  final Map<String, int>? scores;
+  const StudentPracticeListPage({super.key});
 
   @override
   State<StudentPracticeListPage> createState() =>
@@ -41,18 +26,15 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
     return AnimatedBuilder(
       animation: studentStore,
       builder: (context, _) {
-        final materials = (widget.catalog ?? store.materials)
+        final materials = store.materials
             .where(
               (item) =>
                   item.status == 'aktif' &&
                   (_aspect == 'semua' || item.aspect == _aspect),
             )
             .toList();
-        final recommendation = widget.catalog == null
-            ? studentStore.activeRecommendation
-            : null;
-        final recommendationId =
-            widget.recommendedId ?? recommendation?.materialId;
+        final recommendation = studentStore.activeRecommendation;
+        final recommendationId = recommendation?.materialId;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
@@ -84,12 +66,11 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
               ),
             ),
             const SizedBox(height: AppTokens.space16),
-            if (!(widget.completeBaseline ??
-                studentStore.hasCompleteDiagnosticBaseline))
+            if (!studentStore.hasCompleteDiagnosticBaseline)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppTokens.space12),
                 child: Text(
-                  (widget.hasDiagnostic ?? studentStore.hasAnyDiagnostic)
+                  studentStore.hasAnyDiagnostic
                       ? 'Hasil diagnostik belum mencakup semua aspek. Minta bantuan Gurumu untuk melengkapi tes.'
                       : 'Kerjakan tes diagnostik terlebih dahulu agar latihan yang disarankan sesuai kemampuanmu.',
                   style: const TextStyle(
@@ -112,13 +93,11 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
                     child: InkWell(
                       key: ValueKey('practice-material-${material.id}'),
                       borderRadius: BorderRadius.circular(12),
-                      onTap: widget.onOpen != null
-                          ? () => widget.onOpen!(material)
-                          : () => Navigator.pushNamed(
-                              context,
-                              '/siswa/latihan/materi',
-                              arguments: material.id,
-                            ),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/siswa/latihan/materi',
+                        arguments: material.id,
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
                         child: Row(
@@ -176,14 +155,12 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
                                     ),
                                   ),
                                   if (material.id == recommendationId &&
-                                      (recommendation != null ||
-                                          widget.reason != null)) ...[
+                                      recommendation != null) ...[
                                     const SizedBox(height: 5),
                                     Text(
-                                      widget.reason ??
-                                          (recommendation!.source == 'guru'
-                                              ? 'Pilihan Gurumu: ${recommendation.reason}'
-                                              : 'Disarankan: ${recommendation.reason}'),
+                                      recommendation.source == 'guru'
+                                          ? 'Pilihan Gurumu: ${recommendation.reason}'
+                                          : 'Disarankan: ${recommendation.reason}',
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -215,7 +192,7 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
   }
 
   Widget finalScore(String aspect, StudentDemoStore store) {
-    final score = (widget.scores ?? store.practiceScores)[aspect];
+    final score = store.practiceScores[aspect];
     if (score == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 5),
@@ -233,22 +210,16 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
 }
 
 class StudentMaterialDetailPage extends StatelessWidget {
-  const StudentMaterialDetailPage({
-    this.materialId,
-    this.item,
-    this.onStart,
-    super.key,
-  });
-  final DemoMaterial? item;
-  final VoidCallback? onStart;
+  const StudentMaterialDetailPage({this.materialId, super.key});
 
   final int? materialId;
 
   @override
   Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
-    final material =
-        item ?? (materialId == null ? null : store.materialById(materialId!));
+    final material = materialId == null
+        ? null
+        : store.materialById(materialId!);
     if (material == null || material.status != 'aktif') {
       return const Center(
         child: StudentEmptyState(
@@ -256,9 +227,9 @@ class StudentMaterialDetailPage extends StatelessWidget {
         ),
       );
     }
-    final hasPracticeQuestions =
-        onStart != null ||
-        store.practiceQuestionsForMaterial(material.id).isNotEmpty;
+    final hasPracticeQuestions = store
+        .practiceQuestionsForMaterial(material.id)
+        .isNotEmpty;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
@@ -358,13 +329,11 @@ class StudentMaterialDetailPage extends StatelessWidget {
             key: const ValueKey('material-start-exercise'),
             label: 'Mulai latihan',
             icon: Icons.play_arrow_rounded,
-            onPressed:
-                onStart ??
-                () => Navigator.pushNamed(
-                  context,
-                  '/siswa/latihan/kerjakan',
-                  arguments: material.id,
-                ),
+            onPressed: () => Navigator.pushNamed(
+              context,
+              '/siswa/latihan/kerjakan',
+              arguments: material.id,
+            ),
           )
         else
           const StudentEmptyState(

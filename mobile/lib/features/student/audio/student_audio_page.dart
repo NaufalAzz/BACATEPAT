@@ -544,16 +544,7 @@ class StudentEvaluationPage extends StatelessWidget {
 }
 
 class StudentProfilePage extends StatelessWidget {
-  const StudentProfilePage({
-    super.key,
-    this.profile,
-    this.largerText,
-    this.onToggle,
-    this.onLogout,
-  });
-  final Map<String, dynamic>? profile;
-  final bool? largerText;
-  final VoidCallback? onToggle, onLogout;
+  const StudentProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -580,32 +571,25 @@ class StudentProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: AppTokens.space12),
               Text(
-                profile?['nama'] ?? store.student.name,
+                store.student.name,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               Text(
-                'Kelas ${profile?['kelas'] ?? store.className}',
+                'Kelas ${store.className}',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const Divider(height: 26),
               _ProfileLine(
                 label: 'Nama pengguna',
-                value: profile == null
-                    ? store.student.username
-                    : profile!['username'] ?? '–',
+                value: store.student.username,
               ),
               _ProfileLine(
                 label: 'Wali kelas',
-                value: profile == null
-                    ? TeacherDemoStore.instance.teacherName
-                    : profile!['wali_kelas'] ?? '–',
+                value: TeacherDemoStore.instance.teacherName,
               ),
               _ProfileLine(
                 label: 'Izin rekaman suara',
-                value:
-                    (profile == null
-                        ? store.student.parentConsent
-                        : [true, 1].contains(profile!['parent_consent']))
+                value: store.student.parentConsent
                     ? 'Diizinkan'
                     : 'Belum diizinkan',
               ),
@@ -617,8 +601,8 @@ class StudentProfilePage extends StatelessWidget {
           child: SwitchListTile(
             key: const ValueKey('student-larger-text'),
             contentPadding: EdgeInsets.zero,
-            value: largerText ?? store.largerText,
-            onChanged: (_) => (onToggle ?? store.toggleLargerText)(),
+            value: store.largerText,
+            onChanged: (_) => store.toggleLargerText(),
             title: const Text('Huruf lebih besar'),
             subtitle: const Text('Buat tulisan lebih mudah dibaca.'),
             secondary: const Icon(Icons.text_fields_rounded),
@@ -632,16 +616,14 @@ class StudentProfilePage extends StatelessWidget {
         const SizedBox(height: 12),
         OutlinedButton.icon(
           key: const ValueKey('student-logout'),
-          onPressed:
-              onLogout ??
-              () {
-                AppSession.end();
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/welcome',
-                  (_) => false,
-                );
-              },
+          onPressed: () {
+            AppSession.end();
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/welcome',
+              (_) => false,
+            );
+          },
           icon: const Icon(Icons.logout_rounded),
           label: const Text('Keluar'),
           style: OutlinedButton.styleFrom(

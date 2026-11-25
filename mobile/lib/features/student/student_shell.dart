@@ -7,22 +7,10 @@ import 'student_demo_store.dart';
 import 'student_feature_page.dart';
 
 class StudentShell extends StatelessWidget {
-  const StudentShell({
-    required this.screen,
-    this.arguments,
-    this.body,
-    this.largerText,
-    this.name,
-    this.onSelect,
-    super.key,
-  });
+  const StudentShell({required this.screen, this.arguments, super.key});
 
   final PlannedScreen screen;
   final Object? arguments;
-  final Widget? body;
-  final bool? largerText;
-  final String? name;
-  final ValueChanged<String>? onSelect;
 
   static const _mainIds = ['S2', 'S4', 'S9', 'S10'];
 
@@ -37,7 +25,7 @@ class StudentShell extends StatelessWidget {
       animation: StudentDemoStore.instance,
       builder: (context, _) {
         final systemTextScaler = MediaQuery.textScalerOf(context);
-        final textScaler = (largerText ?? StudentDemoStore.instance.largerText)
+        final textScaler = StudentDemoStore.instance.largerText
             ? _StudentPreferenceTextScaler(systemTextScaler, 1.12)
             : systemTextScaler;
         return MediaQuery(
@@ -73,11 +61,14 @@ class StudentShell extends StatelessWidget {
                     radius: 17,
                     backgroundColor: AppTokens.sunshine,
                     child: Text(
-                      (name ?? StudentDemoStore.instance.studentName)
-                              .characters
-                              .firstOrNull
-                              ?.toUpperCase() ??
-                          '?',
+                      StudentDemoStore.instance.studentName.isEmpty
+                          ? '?'
+                          : StudentDemoStore
+                                .instance
+                                .studentName
+                                .characters
+                                .first
+                                .toUpperCase(),
                       style: const TextStyle(
                         color: AppTokens.text,
                         fontWeight: FontWeight.w800,
@@ -87,9 +78,7 @@ class StudentShell extends StatelessWidget {
                 ),
               ],
             ),
-            body:
-                body ??
-                StudentFeatureBody(screen: screen, arguments: arguments),
+            body: StudentFeatureBody(screen: screen, arguments: arguments),
             bottomNavigationBar: Material(
               key: const ValueKey('student-navigation'),
               color: Colors.white,
@@ -106,16 +95,10 @@ class StudentShell extends StatelessWidget {
                             key: ValueKey(
                               'student-tab-${mainScreens[index].id}',
                             ),
-                            onTap: () {
-                              if (onSelect != null) {
-                                onSelect!(mainScreens[index].id);
-                              } else {
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  mainScreens[index].path,
-                                );
-                              }
-                            },
+                            onTap: () => Navigator.pushReplacementNamed(
+                              context,
+                              mainScreens[index].path,
+                            ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

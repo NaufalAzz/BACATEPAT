@@ -28,107 +28,6 @@ class DashboardPage extends StatelessWidget {
     final averages = _averageScores(
       latestByStudent.values.expand((value) => value.values).toList(),
     );
-    return DashboardOverview(
-      activeCount: active.length,
-      classCount: store.accessibleClasses.length,
-      diagnosticPercent: diagnosticPercent,
-      pendingCount: store.pendingRecordingCount,
-      averages: averages,
-      onStudents: () => Navigator.pushReplacementNamed(context, '/guru/siswa'),
-      onRecordings: () =>
-          Navigator.pushReplacementNamed(context, '/guru/rekaman'),
-      supportRows: [
-        for (final student in store.activeStudents.where(
-          (item) => studentStore.needsSupportForStudent(item.id),
-        ))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const CircleAvatar(
-              child: Icon(Icons.person_outline_rounded),
-            ),
-            title: Text(student.name),
-            subtitle: Text(
-              '${store.className(student.classId)} • ${masterySummaryFor({for (final entry in (latestByStudent[student.id] ?? const <String, MasteryRecord>{}).entries) entry.key: entry.value.score})}',
-            ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.pushNamed(
-              context,
-              '/guru/siswa/detail',
-              arguments: student.id,
-            ),
-          ),
-      ],
-      recommendations: [
-        for (final recommendation
-            in studentStore.activeRecommendationsForTeacher(teacherId))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${store.studentById(recommendation.studentId)?.name ?? 'Siswa'} · ${store.materialById(recommendation.materialId)?.title ?? 'Materi tidak tersedia'}',
-            ),
-            subtitle: Text(
-              '${aspectLabel(recommendation.aspect)}, tingkat ${recommendation.level} · ${recommendation.reason}',
-            ),
-          ),
-      ],
-      gaps: [
-        for (final gap in studentStore.materialGapsForTeacher(teacherId))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${store.studentById(gap.studentId)?.name ?? 'Siswa'} · ${aspectLabel(gap.aspect)} tingkat ${gap.level}',
-            ),
-            subtitle: Text(gap.reason),
-          ),
-      ],
-      recordings: [
-        for (final recording in store.accessibleRecordings.where(
-          (item) => item.status == 'terkirim',
-        ))
-          Builder(
-            builder: (context) {
-              final student = store.studentById(recording.studentId)!;
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                  child: Icon(Icons.graphic_eq_rounded),
-                ),
-                title: Text(student.name),
-                subtitle: Text(
-                  '${aspectLabel(recording.aspect)} • ${recording.durationSeconds} detik',
-                ),
-                trailing: const StatusBadge(label: 'Menunggu'),
-                onTap: () =>
-                    Navigator.pushReplacementNamed(context, '/guru/rekaman'),
-              );
-            },
-          ),
-      ],
-    );
-  }
-}
-
-class DashboardOverview extends StatelessWidget {
-  const DashboardOverview({
-    super.key,
-    required this.activeCount,
-    required this.classCount,
-    required this.diagnosticPercent,
-    required this.pendingCount,
-    required this.averages,
-    required this.onStudents,
-    required this.onRecordings,
-    required this.supportRows,
-    required this.recommendations,
-    required this.gaps,
-    required this.recordings,
-  });
-  final int activeCount, classCount, diagnosticPercent, pendingCount;
-  final Map<String, int?> averages;
-  final VoidCallback onStudents, onRecordings;
-  final List<Widget> supportRows, recommendations, gaps, recordings;
-  @override
-  Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
@@ -156,7 +55,7 @@ class DashboardOverview extends StatelessWidget {
                   width: tileWidth,
                   child: MetricTile(
                     label: 'Siswa aktif',
-                    value: '$activeCount',
+                    value: '${active.length}',
                     icon: Icons.people_alt_outlined,
                   ),
                 ),
@@ -164,7 +63,7 @@ class DashboardOverview extends StatelessWidget {
                   width: tileWidth,
                   child: MetricTile(
                     label: 'Kelas',
-                    value: '$classCount',
+                    value: '${store.accessibleClasses.length}',
                     icon: Icons.class_outlined,
                     tint: AppTokens.accent,
                   ),
@@ -182,7 +81,7 @@ class DashboardOverview extends StatelessWidget {
                   width: tileWidth,
                   child: MetricTile(
                     label: 'Rekaman menunggu',
-                    value: '$pendingCount',
+                    value: '${store.pendingRecordingCount}',
                     icon: Icons.mic_none_rounded,
                     tint: const Color(0xFF4F71A8),
                   ),
@@ -214,13 +113,34 @@ class DashboardOverview extends StatelessWidget {
             final support = TeacherPanel(
               title: 'Perlu pendampingan',
               trailing: TextButton(
-                onPressed: onStudents,
+                onPressed: () =>
+                    Navigator.pushReplacementNamed(context, '/guru/siswa'),
                 child: const Text('Semua siswa'),
               ),
               child: Column(
                 children: [
-                  ...supportRows,
-                  if (supportRows.isEmpty)
+                  for (final student in store.activeStudents.where(
+                    (item) => studentStore.needsSupportForStudent(item.id),
+                  ))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.person_outline_rounded),
+                      ),
+                      title: Text(student.name),
+                      subtitle: Text(
+                        '${store.className(student.classId)} • ${masterySummaryFor({for (final entry in (latestByStudent[student.id] ?? const <String, MasteryRecord>{}).entries) entry.key: entry.value.score})}',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/guru/siswa/detail',
+                        arguments: student.id,
+                      ),
+                    ),
+                  if (!store.activeStudents.any(
+                    (item) => studentStore.needsSupportForStudent(item.id),
+                  ))
                     const EmptyState(
                       message:
                           'Tidak ada siswa yang perlu pendampingan saat ini.',
@@ -252,8 +172,20 @@ class DashboardOverview extends StatelessWidget {
           title: 'Rekomendasi aktif',
           child: Column(
             children: [
-              ...recommendations,
-              if (recommendations.isEmpty)
+              for (final recommendation
+                  in studentStore.activeRecommendationsForTeacher(teacherId))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${store.studentById(recommendation.studentId)?.name ?? 'Siswa'} · ${store.materialById(recommendation.materialId)?.title ?? 'Materi tidak tersedia'}',
+                  ),
+                  subtitle: Text(
+                    '${aspectLabel(recommendation.aspect)}, tingkat ${recommendation.level} · ${recommendation.reason}',
+                  ),
+                ),
+              if (studentStore
+                  .activeRecommendationsForTeacher(teacherId)
+                  .isEmpty)
                 const EmptyState(message: 'Belum ada rekomendasi aktif.'),
             ],
           ),
@@ -263,8 +195,15 @@ class DashboardOverview extends StatelessWidget {
           title: 'Materi yang perlu disiapkan',
           child: Column(
             children: [
-              ...gaps,
-              if (gaps.isEmpty)
+              for (final gap in studentStore.materialGapsForTeacher(teacherId))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${store.studentById(gap.studentId)?.name ?? 'Siswa'} · ${aspectLabel(gap.aspect)} tingkat ${gap.level}',
+                  ),
+                  subtitle: Text(gap.reason),
+                ),
+              if (studentStore.materialGapsForTeacher(teacherId).isEmpty)
                 const EmptyState(
                   message: 'Tidak ada kekurangan materi saat ini.',
                 ),
@@ -275,13 +214,36 @@ class DashboardOverview extends StatelessWidget {
         TeacherPanel(
           title: 'Antrean evaluasi rekaman',
           trailing: TextButton(
-            onPressed: onRecordings,
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, '/guru/rekaman'),
             child: const Text('Buka antrean'),
           ),
           child: Column(
             children: [
-              ...recordings,
-              if (recordings.isEmpty)
+              for (final recording in store.accessibleRecordings.where(
+                (item) => item.status == 'terkirim',
+              ))
+                Builder(
+                  builder: (context) {
+                    final student = store.studentById(recording.studentId)!;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.graphic_eq_rounded),
+                      ),
+                      title: Text(student.name),
+                      subtitle: Text(
+                        '${aspectLabel(recording.aspect)} • ${recording.durationSeconds} detik',
+                      ),
+                      trailing: const StatusBadge(label: 'Menunggu'),
+                      onTap: () => Navigator.pushReplacementNamed(
+                        context,
+                        '/guru/rekaman',
+                      ),
+                    );
+                  },
+                ),
+              if (store.pendingRecordingCount == 0)
                 const EmptyState(
                   message: 'Tidak ada rekaman yang menunggu evaluasi.',
                 ),
