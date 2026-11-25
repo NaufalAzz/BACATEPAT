@@ -23,100 +23,123 @@ class StudentDashboardPage extends StatelessWidget {
               item.classId == student.student.classId && item.status == 'aktif',
         );
         final activities = student.activities.take(2).toList();
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
+        return StudentOverview(
+          name: student.studentName,
+          className: student.className,
+          active: active,
+          reason: _studentReason(
+            recommendation?.source,
+            recommendation?.reason,
+          ),
+          hasActiveTest: hasActiveTest,
+          hasAnyDiagnostic: student.hasAnyDiagnostic,
+          completed: student.diagnosticCompleted,
+          completeBaseline: student.hasCompleteDiagnosticBaseline,
+          activities: activities,
+          onStart: () => Navigator.pushNamed(
+            context,
+            '/siswa/latihan/materi',
+            arguments: active?.id,
+          ),
+          onHistory: () => Navigator.pushNamed(context, '/siswa/evaluasi'),
+          onPractice: () => Navigator.pushNamed(context, '/siswa/latihan'),
+          onDiagnostic: () => Navigator.pushNamed(context, '/siswa/diagnostik'),
+        );
+      },
+    );
+  }
+}
+
+class StudentOverview extends StatelessWidget {
+  const StudentOverview({
+    super.key,
+    required this.name,
+    required this.className,
+    required this.active,
+    required this.reason,
+    required this.hasActiveTest,
+    required this.hasAnyDiagnostic,
+    required this.completed,
+    required this.completeBaseline,
+    required this.activities,
+    required this.onStart,
+    required this.onHistory,
+    required this.onPractice,
+    required this.onDiagnostic,
+  });
+  final String name, className, reason;
+  final DemoMaterial? active;
+  final bool hasActiveTest, hasAnyDiagnostic, completed, completeBaseline;
+  final List<StudentActivity> activities;
+  final VoidCallback onStart, onHistory, onPractice, onDiagnostic;
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
+      children: [
+        _Greeting(name: name, className: className),
+        const SizedBox(height: 14),
+        if (active != null)
+          _Recommendation(material: active!, reason: reason, onStart: onStart)
+        else
+          _NoRecommendation(
+            message: completeBaseline
+                ? 'Hebat, semua aspek sudah dikuasai!'
+                : hasAnyDiagnostic
+                ? 'Hasil tesmu belum lengkap. Minta bantuan Gurumu ya.'
+                : 'Ayo mulai dengan tes membaca bersama Gurumu.',
+            buttonLabel: hasAnyDiagnostic
+                ? 'Pilih latihan'
+                : 'Buka tes diagnostik',
+            onOpen: hasAnyDiagnostic ? onPractice : onDiagnostic,
+          ),
+        const SizedBox(height: 10),
+        _DiagnosticRow(
+          completed: completed,
+          active: hasActiveTest,
+          onOpen: completed ? onHistory : onDiagnostic,
+        ),
+        const SizedBox(height: 20),
+        Row(
           children: [
-            _Greeting(name: student.studentName, className: student.className),
-            const SizedBox(height: 14),
-            if (active != null)
-              _Recommendation(
-                material: active,
-                reason: _studentReason(
-                  recommendation?.source,
-                  recommendation?.reason,
-                ),
-                onStart: () => Navigator.pushNamed(
-                  context,
-                  '/siswa/latihan/materi',
-                  arguments: active.id,
-                ),
-              )
-            else
-              _NoRecommendation(
-                message: student.hasCompleteDiagnosticBaseline
-                    ? 'Hebat, semua aspek sudah dikuasai!'
-                    : student.hasAnyDiagnostic
-                    ? 'Hasil tesmu belum lengkap. Minta bantuan Gurumu ya.'
-                    : 'Ayo mulai dengan tes membaca bersama Gurumu.',
-                buttonLabel: student.hasAnyDiagnostic
-                    ? 'Pilih latihan'
-                    : 'Buka tes diagnostik',
-                onOpen: () => Navigator.pushNamed(
-                  context,
-                  student.hasAnyDiagnostic
-                      ? '/siswa/latihan'
-                      : '/siswa/diagnostik',
-                ),
-              ),
-            const SizedBox(height: 10),
-            _DiagnosticRow(
-              completed: student.diagnosticCompleted,
-              active: hasActiveTest,
-              onOpen: () => Navigator.pushNamed(
-                context,
-                student.diagnosticCompleted
-                    ? '/siswa/evaluasi'
-                    : '/siswa/diagnostik',
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Expanded(child: _SectionLabel('AKTIVITAS TERBARU')),
-                TextButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/siswa/evaluasi'),
-                  child: const Text(
-                    'Lihat semua',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-            const Text(
-              'Teruskan langkahmu',
-              style: TextStyle(
-                fontSize: 18,
-                height: 1.25,
-                color: AppTokens.text,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: AppTokens.outline),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  for (var i = 0; i < activities.length; i++) ...[
-                    _ActivityTile(activity: activities[i]),
-                    if (i != activities.length - 1)
-                      const Divider(height: 1, indent: 58),
-                  ],
-                  if (activities.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('Belum ada aktivitas membaca.'),
-                    ),
-                ],
+            const Expanded(child: _SectionLabel('AKTIVITAS TERBARU')),
+            TextButton(
+              onPressed: onHistory,
+              child: const Text(
+                'Lihat semua',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
               ),
             ),
           ],
-        );
-      },
+        ),
+        const Text(
+          'Teruskan langkahmu',
+          style: TextStyle(fontSize: 18, height: 1.25, color: AppTokens.text),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppTokens.outline),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < activities.length; i++) ...[
+                _ActivityTile(activity: activities[i]),
+                if (i != activities.length - 1)
+                  const Divider(height: 1, indent: 58),
+              ],
+              if (activities.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Belum ada aktivitas membaca.'),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

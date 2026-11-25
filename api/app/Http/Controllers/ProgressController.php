@@ -40,7 +40,7 @@ class ProgressController
         }
 
         return $query->orderBy('h.recorded_at')->orderBy('h.id')->get(['u.name as nama', 'c.name as kelas', 'h.aspect_code as aspek',
-            'h.recorded_at as tanggal', 'h.score as skor', 'h.mastery_status as status', 'h.source_type as sumber']);
+            'h.id', 'h.student_id', 'h.class_id', 'h.observed_level', 'h.diagnostic_attempt_id', 'h.practice_attempt_id', 'h.audio_evaluation_revision_id', 'h.reason', 'h.recorded_at as tanggal', 'h.score as skor', 'h.mastery_status as status', 'h.source_type as sumber']);
     }
 
     public function student(Request $request, ?int $id = null)

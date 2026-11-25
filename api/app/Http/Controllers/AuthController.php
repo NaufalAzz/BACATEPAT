@@ -72,14 +72,14 @@ class AuthController
 
     private function profile(User $user): array
     {
-        $profile = ['id' => $user->id, 'nama' => $user->name, 'role' => $user->role];
+        $profile = ['id' => $user->id, 'nama' => $user->name, 'username' => $user->username, 'role' => $user->role];
         if ($user->role === 'guru') {
             $profile += ['email' => $user->email, 'retensi_audio_hari' => $user->audio_retention_days];
         }
         if ($user->role === 'siswa') {
             $student = DB::table('students')->join('classes', 'classes.id', '=', 'students.current_class_id')
-                ->where('students.user_id', $user->id)->where('students.status', 'aktif')
-                ->first(['students.id as siswa_id', 'classes.name as kelas']);
+                ->join('users as teacher', 'teacher.id', '=', 'classes.teacher_id')->where('students.user_id', $user->id)->where('students.status', 'aktif')
+                ->first(['students.id as siswa_id', 'classes.name as kelas', 'teacher.name as wali_kelas', 'students.parent_consent']);
             abort_unless($student, 403);
             $profile += (array) $student;
         }

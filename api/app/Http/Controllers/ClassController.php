@@ -16,7 +16,7 @@ class ClassController
 
     public function index(Request $request)
     {
-        return ['data' => $this->owned($request)->orderBy('name')->get(['id', 'name as nama_kelas', 'grade as tingkat', 'school_year as tahun_ajaran'])];
+        return ['data' => $this->owned($request)->orderBy('name')->select(['id', 'name as nama_kelas', 'grade as tingkat', 'school_year as tahun_ajaran'])->selectSub(DB::table('students')->whereColumn('current_class_id', 'classes.id')->where('status', 'aktif')->selectRaw('COUNT(*)'), 'jumlah_siswa')->get()];
     }
 
     public function save(Request $request, ?int $id = null)

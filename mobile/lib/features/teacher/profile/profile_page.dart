@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_session.dart';
+import '../../../core/api/bacatepat_api.dart';
 import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({
+    super.key,
+    this.profile,
+    this.onSave,
+    this.onPassword,
+    this.onLogout,
+  });
+  final Map<String, dynamic>? profile;
+  final Future<void> Function(String, String, int)? onSave;
+  final VoidCallback? onPassword, onLogout;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -23,9 +33,17 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     final store = TeacherDemoStore.instance;
-    _name = TextEditingController(text: store.teacherName);
-    _email = TextEditingController(text: store.teacherEmail);
-    _retention = store.audioRetentionDays.toDouble();
+    _name = TextEditingController(
+      text: widget.profile?['nama'] ?? store.teacherName,
+    );
+    _email = TextEditingController(
+      text: widget.profile == null
+          ? store.teacherEmail
+          : widget.profile!['email'] ?? '',
+    );
+    _retention =
+        (widget.profile?['retensi_audio_hari'] ?? store.audioRetentionDays)
+            .toDouble();
   }
 
   @override
@@ -41,7 +59,7 @@ class _ProfilePageState extends State<ProfilePage> {
     children: [
       const TeacherPageHeading(
         title: 'Profil Guru',
-        subtitle: 'Kelola informasi profil dan preferensi pratinjau.',
+        subtitle: 'Kelola informasi profil dan preferensi akun.',
       ),
       TeacherPanel(
         child: Form(
@@ -52,8 +70,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 radius: 36,
                 backgroundColor: AppTokens.sunshine,
                 child: Text(
-                  TeacherDemoStore.instance.teacherName
-                      .split(' ')
+                  (widget.profile?['nama'] as String? ??
+                          TeacherDemoStore.instance.teacherName)
+                      .trim()
+                      .split(RegExp(r'\s+'))
                       .map((part) => part.characters.first)
                       .take(2)
                       .join()
@@ -67,7 +87,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 8),
               Text(
-                TeacherDemoStore.instance.teacherName,
+                widget.profile?['nama'] ??
+                    TeacherDemoStore.instance.teacherName,
                 style: Theme.of(context).textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
@@ -106,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: AppTokens.space8),
               TextButton.icon(
-                onPressed: () => _changePassword(context),
+                onPressed: widget.onPassword ?? () => _changePassword(context),
                 icon: const Icon(Icons.lock_outline_rounded),
                 label: const Text('Ganti kata sandi'),
               ),
@@ -126,30 +147,34 @@ class _ProfilePageState extends State<ProfilePage> {
             Slider(
               key: const ValueKey('audio-retention'),
               value: _retention,
-              min: 90,
+              min: widget.profile == null ? 90 : 1,
               max: 180,
-              divisions: 3,
+              divisions: widget.profile == null ? 3 : 179,
               label: '${_retention.round()} hari',
               onChanged: (value) => setState(() => _retention = value),
-              onChangeEnd: (value) => TeacherDemoStore.instance.updateProfile(
-                name: _name.text,
-                email: _email.text,
-                retentionDays: value.round(),
+              onChangeEnd: widget.profile != null
+                  ? null
+                  : (value) => TeacherDemoStore.instance.updateProfile(
+                      name: _name.text,
+                      email: _email.text,
+                      retentionDays: value.round(),
+                    ),
+            ),
+            if (widget.profile == null)
+              const Text(
+                'Rentang 90–180 hari mengikuti kebijakan retensi pada BRD.',
               ),
-            ),
-            const Text(
-              'Rentang 90–180 hari mengikuti kebijakan retensi pada BRD.',
-            ),
           ],
         ),
       ),
       const SizedBox(height: AppTokens.space16),
-      const TeacherPanel(
-        title: 'Akun pratinjau',
-        child: Text(
-          'Profil dan pengaturan hanya tersimpan selama aplikasi berjalan. Tidak ada data yang dikirim ke server.',
+      if (widget.profile == null)
+        const TeacherPanel(
+          title: 'Akun pratinjau',
+          child: Text(
+            'Profil dan pengaturan hanya tersimpan selama aplikasi berjalan. Tidak ada data yang dikirim ke server.',
+          ),
         ),
-      ),
       const SizedBox(height: AppTokens.space16),
       Card(
         child: ListTile(
@@ -159,21 +184,43 @@ class _ProfilePageState extends State<ProfilePage> {
             'Keluar dari akun',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
-          onTap: () {
-            AppSession.end();
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/welcome',
-              (_) => false,
-            );
-          },
+          onTap:
+              widget.onLogout ??
+              () {
+                AppSession.end();
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/welcome',
+                  (_) => false,
+                );
+              },
         ),
       ),
     ],
   );
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (widget.onSave != null) {
+      try {
+        await widget.onSave!(
+          _name.text.trim(),
+          _email.text.trim(),
+          _retention.round(),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Profil diperbarui.')));
+        }
+      } on ApiError catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+      return;
+    }
     TeacherDemoStore.instance.updateProfile(
       name: _name.text.trim(),
       email: _email.text.trim(),

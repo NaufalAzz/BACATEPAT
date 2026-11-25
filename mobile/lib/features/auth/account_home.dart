@@ -1,5 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../app/navigation_plan.dart';
+import '../teacher/dashboard/dashboard_page.dart';
+import '../teacher/teacher_shell.dart';
+import '../teacher/profile/profile_page.dart';
+import '../student/audio/student_audio_page.dart';
+import '../teacher/classes/classes_page.dart';
+import '../teacher/teacher_demo_store.dart' show DemoMaterial, aspectLabel;
+import '../teacher/teacher_widgets.dart';
+import '../student/dashboard/student_dashboard_page.dart';
+import '../student/student_shell.dart';
+import '../student/progress/student_progress_page.dart';
+import '../student/practice/student_practice_pages.dart';
+import '../student/student_demo_store.dart' show StudentActivity, MasteryRecord;
 import '../../core/api/bacatepat_api.dart';
 import '../../core/components/api_list_page.dart';
 import '../student/diagnostic/server_diagnostic_page.dart';
@@ -61,12 +74,73 @@ class _AccountHomeState extends State<AccountHome> {
   Future<Map<String, dynamic>> load() async {
     final response = await widget.api.request('auth/me');
     profile = response['data'];
-    if (!teacher) return widget.api.request('siswa/beranda');
+    if (!teacher) {
+      final result = await widget.api.request('siswa/beranda');
+      if (tab == 'S9') {
+        final response = await widget.api.request('siswa/perkembangan');
+        final groups = response['data']['aspek'];
+        result['records'] = <MasteryRecord>[
+          if (groups is Map)
+            for (final entries in groups.values)
+              for (final row in entries)
+                MasteryRecord(
+                  id: row['id'],
+                  studentId: row['student_id'],
+                  classId: row['class_id'],
+                  aspect: row['aspek'],
+                  level: row['observed_level'],
+                  score: num.parse(row['skor'].toString()).round(),
+                  source: row['sumber'] == 'diagnostic'
+                      ? 'diagnostik'
+                      : row['sumber'],
+                  sourceId:
+                      row['diagnostic_attempt_id'] ??
+                      row['practice_attempt_id'] ??
+                      row['audio_evaluation_revision_id'],
+                  status: const {
+                    'not_mastered': 'belum_dikuasai',
+                    'practicing': 'sedang_berlatih',
+                    'mastered': 'dikuasai',
+                  }[row['status']]!,
+                  recordedAt: DateTime.parse(row['tanggal']),
+                  reason: row['reason'],
+                ),
+        ];
+      }
+      if (tab == 'S4') {
+        final catalog = <DemoMaterial>[];
+        var page = 1;
+        while (true) {
+          final rows = await widget.api.request('siswa/latihan?page=$page');
+          for (final row in rows['data']) {
+            catalog.add(
+              DemoMaterial(
+                id: row['materi_id'],
+                title: row['judul'],
+                content: row['konten'],
+                aspect: row['aspek'],
+                level: row['tingkat'],
+              ),
+            );
+          }
+          if (page >= rows['last_page']) break;
+          page++;
+        }
+        result['catalog'] = catalog;
+      }
+      return result;
+    }
     final responses = await Future.wait([
       widget.api.request('guru/kelas'),
       widget.api.request('guru/dashboard'),
+      widget.api.request('guru/pendampingan'),
     ]);
-    return {'data': responses.first['data'], 'summary': responses.last['data']};
+    pending = responses[1]['data']['pending'];
+    return {
+      'data': responses.first['data'],
+      'summary': responses[1]['data'],
+      'support': responses[2]['data'],
+    };
   }
 
   void exit() =>
@@ -87,77 +161,86 @@ class _AccountHomeState extends State<AccountHome> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(profile['nama'] as String),
-      actions: [
-        if (teacher)
-          PopupMenuButton<String>(
-            tooltip: 'Pengaturan akun',
-            onSelected: (action) async {
-              if (action == 'password') {
-                await editForm(
-                  context,
-                  'Ganti kata sandi',
-                  [
-                    field('password_lama', 'Kata sandi lama'),
-                    field('password_baru', 'Kata sandi baru'),
-                  ],
-                  (v) async {
-                    await widget.api.request(
-                      'auth/password',
-                      body: v,
-                      method: 'PUT',
-                    );
-                  },
-                );
-              } else {
-                final ok = await editForm(
-                  context,
-                  'Profil Guru',
-                  [
-                    field('nama', 'Nama guru'),
-                    field('retensi_audio_hari', 'Retensi audio (1–180 hari)'),
-                  ],
-                  (v) async {
-                    final r = await widget.api.request(
-                      'guru/profil',
-                      body: v,
-                      method: 'PUT',
-                    );
-                    profile = r['data'];
-                  },
-                  initial: {
-                    'nama': profile['nama'],
-                    'retensi_audio_hari': profile['retensi_audio_hari']
-                        .toString(),
-                  },
-                );
-                if (mounted && ok) setState(() => overview = load());
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'profil',
-                child: Text('Profil dan retensi audio'),
-              ),
-              PopupMenuItem(value: 'password', child: Text('Ganti kata sandi')),
-            ],
+  late String tab = teacher ? 'G2' : 'S2';
+
+  Future<void> open(Widget page) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => page),
+    );
+    if (mounted) setState(() => overview = load());
+  }
+
+  void select(String id) => setState(() {
+    tab = id;
+    overview = load();
+  });
+
+  void openMaterial(DemoMaterial material) {
+    open(
+      Scaffold(
+        appBar: AppBar(title: const Text('Materi latihan')),
+        body: StudentMaterialDetailPage(
+          item: material,
+          onStart: () => open(
+            ServerDiagnosticPage(
+              api: widget.api,
+              material: {
+                'materi_id': material.id,
+                'judul': material.title,
+                'konten': material.content,
+              },
+            ),
           ),
-        IconButton(
-          tooltip: 'Muat ulang',
-          icon: const Icon(Icons.refresh),
-          onPressed: () => setState(() => overview = load()),
         ),
-        IconButton(
-          tooltip: 'Keluar',
-          icon: const Icon(Icons.logout),
-          onPressed: logout,
-        ),
-      ],
-    ),
-    body: FutureBuilder<Map<String, dynamic>>(
+      ),
+    );
+  }
+
+  bool largerText = false;
+  Widget accountSettings() {
+    if (!teacher) {
+      return StudentProfilePage(
+        profile: profile,
+        largerText: largerText,
+        onToggle: () => setState(() => largerText = !largerText),
+        onLogout: logout,
+      );
+    }
+    return ProfilePage(
+      profile: profile,
+      onLogout: logout,
+      onSave: (name, email, days) async {
+        final response = await widget.api.request(
+          'guru/profil',
+          method: 'PUT',
+          body: {'nama': name, 'email': email, 'retensi_audio_hari': days},
+        );
+        if (mounted) setState(() => profile = response['data']);
+      },
+      onPassword: () => editForm(
+        context,
+        'Ganti kata sandi',
+        [
+          field('password_lama', 'Kata sandi lama'),
+          field('password_baru', 'Kata sandi baru'),
+        ],
+        (values) async {
+          await widget.api.request(
+            'auth/password',
+            method: 'PUT',
+            body: values,
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screen = (teacher ? NavigationPlan.teacher : NavigationPlan.student)
+        .firstWhere((s) => s.id == tab);
+    final body = FutureBuilder<Map<String, dynamic>>(
       future: overview,
       builder: (context, state) {
         if (state.connectionState != ConnectionState.done) {
@@ -169,116 +252,191 @@ class _AccountHomeState extends State<AccountHome> {
           final classes = data as List;
           final summary = state.requireData['summary'];
 
+          if (tab == 'G2') {
+            return DashboardOverview(
+              activeCount: summary['aktif'],
+              classCount: summary['kelas'],
+              pendingCount: summary['pending'],
+              diagnosticPercent: summary['aktif'] == 0
+                  ? 0
+                  : (summary['diagnosed'] * 100 / summary['aktif']).round(),
+              averages: {
+                for (final row in summary['averages'])
+                  row['aspect_code']: num.parse(row['score'].toString())
+                      .round(),
+              },
+              onStudents: () => select('G3'),
+              onRecordings: () => select('G13'),
+              supportRows: [
+                for (final row in state.requireData['support'])
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline_rounded),
+                    ),
+                    title: Text(row['nama']),
+                    subtitle: Text("${row['kelas']} • ${row['alasan']}"),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => open(
+                      StudentManagement(api: widget.api, id: row['siswa_id']),
+                    ),
+                  ),
+              ],
+              recommendations: [
+                for (final row in summary['recommendations'])
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text("${row['name']} · ${row['title']}"),
+                    subtitle: Text(
+                      "${aspectLabel(row['aspect_code'])}, tingkat ${row['target_level']} · ${row['reason']}",
+                    ),
+                  ),
+              ],
+              gaps: [
+                for (final row in summary['gaps'])
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      "${row['name']} · ${aspectLabel(row['aspect_code'])} tingkat ${row['target_level']}",
+                    ),
+                    subtitle: Text(row['reason']),
+                  ),
+              ],
+              recordings: [
+                for (final row in summary['recordings'])
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.graphic_eq_rounded),
+                    ),
+                    title: Text(row['name']),
+                    subtitle: Text(
+                      "${row['target_text_snapshot']} • ${row['duration_seconds']} detik",
+                    ),
+                    trailing: const StatusBadge(label: 'Menunggu'),
+                    onTap: () => select('G13'),
+                  ),
+              ],
+            );
+          }
+          if (tab == 'G17') return accountSettings();
+          if (tab == 'G3') {
+            return ApiListPage(
+              api: widget.api,
+              title: 'Siswa',
+              path: 'guru/siswa',
+              empty: 'Belum ada siswa.',
+              tile: (_, row, refresh) => ListTile(
+                title: Text(row['nama']),
+                subtitle: Text(row['kelas']),
+                onTap: () async {
+                  await open(StudentManagement(api: widget.api, id: row['id']));
+                  refresh();
+                },
+              ),
+            );
+          }
+          if (tab == 'G6' || tab == 'G9') {
+            return TeacherContentPage(
+              key: ValueKey(tab),
+              api: widget.api,
+              initialSection: tab == 'G6' ? 'materi' : 'soal',
+            );
+          }
+          if (tab == 'G13') return TeacherRecordings(api: widget.api);
+          if (tab == 'G5') {
+            return ClassesPage(
+              rows: classes,
+              onAdd: editClass,
+              onEdit: editClass,
+              onOpen: (row) => open(
+                ClassRoster(
+                  api: widget.api,
+                  id: row['id'],
+                  name: row['nama_kelas'],
+                ),
+              ),
+              onDelete: (row) async {
+                final ok = await confirmAction(
+                  context,
+                  'Hapus kelas',
+                  row['nama_kelas'],
+                  () async {
+                    await widget.api.request(
+                      "guru/kelas/${row['id']}",
+                      method: 'DELETE',
+                    );
+                  },
+                );
+                if (mounted && ok) setState(() => overview = load());
+              },
+            );
+          }
           return ListView(
             children: [
-              ListTile(
-                title: const Text('Ringkasan kelas'),
-                subtitle: Text(
-                  "${summary['kelas']} kelas · ${summary['siswa']} siswa · ${summary['tes_aktif']} tes aktif",
-                ),
+              TeacherPageHeading(
+                title: screen.title,
+                subtitle: 'Pilih kelas untuk melihat data pembelajaran.',
               ),
-              ListTile(
-                leading: const Icon(Icons.library_books),
-                title: const Text('Materi dan soal'),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => TeacherContentPage(api: widget.api),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.add),
-                title: const Text('Tambah kelas'),
-                onTap: () => editClass(),
-              ),
-              ListTile(
-                leading: const Icon(Icons.headphones),
-                title: const Text('Rekaman siswa'),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => TeacherRecordings(api: widget.api),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.support),
-                title: const Text('Pendampingan siswa'),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => ApiListPage(
-                      api: widget.api,
-                      title: 'Pendampingan siswa',
-                      path: 'guru/pendampingan',
-                      empty: 'Belum ada siswa yang memerlukan tindak lanjut.',
-                      tile: (context, row, refresh) => ListTile(
-                        title: Text(row['nama']),
-                        subtitle: Text("${row['aspek']} · ${row['alasan']}"),
-                        trailing: TextButton(
-                          child: const Text('Sudah didampingi'),
-                          onPressed: () async {
-                            try {
-                              await widget.api.request(
-                                'guru/siswa/${row['siswa_id']}/pendampingan',
-                                method: 'PATCH',
-                                body: {'perlu_pendampingan': false},
-                              );
-                              refresh();
-                            } on ApiError catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(e.message)),
+              if (tab == 'G15')
+                ListTile(
+                  leading: const Icon(Icons.support),
+                  title: const Text('Pendampingan siswa'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => ApiListPage(
+                        api: widget.api,
+                        title: 'Pendampingan siswa',
+                        path: 'guru/pendampingan',
+                        empty: 'Belum ada siswa yang memerlukan tindak lanjut.',
+                        tile: (context, row, refresh) => ListTile(
+                          title: Text(row['nama']),
+                          subtitle: Text("${row['aspek']} · ${row['alasan']}"),
+                          trailing: TextButton(
+                            child: const Text('Sudah didampingi'),
+                            onPressed: () async {
+                              try {
+                                await widget.api.request(
+                                  'guru/siswa/${row['siswa_id']}/pendampingan',
+                                  method: 'PATCH',
+                                  body: {'perlu_pendampingan': false},
                                 );
+                                refresh();
+                              } on ApiError catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(e.message)),
+                                  );
+                                }
                               }
-                            }
-                          },
+                            },
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
               for (final c in classes)
                 ListTile(
                   title: Text(c['nama_kelas']),
                   subtitle: Text(c['tahun_ajaran']),
-                  trailing: PopupMenuButton<String>(
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Ubah kelas')),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Hapus kelas'),
-                      ),
-                    ],
-                    onSelected: (action) async {
-                      if (action == 'edit') {
-                        await editClass(c);
-                        return;
-                      }
-                      final ok = await confirmAction(
-                        context,
-                        'Hapus kelas',
-                        c['nama_kelas'],
-                        () async {
-                          await widget.api.request(
-                            "guru/kelas/${c['id']}",
-                            method: 'DELETE',
-                          );
-                        },
-                      );
-                      if (mounted && ok) setState(() => overview = load());
-                    },
-                  ),
+                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute<void>(
-                      builder: (_) => ClassRoster(
-                        api: widget.api,
-                        id: c['id'],
-                        name: c['nama_kelas'],
-                      ),
+                      builder: (_) => tab == 'G11'
+                          ? DiagnosticResults(api: widget.api, classId: c['id'])
+                          : tab == 'G16'
+                          ? ClassReport(
+                              api: widget.api,
+                              path: "guru/laporan/kelas/${c['id']}",
+                            )
+                          : ClassRoster(
+                              api: widget.api,
+                              id: c['id'],
+                              name: c['nama_kelas'],
+                            ),
                     ),
                   ),
                 ),
@@ -286,79 +444,80 @@ class _AccountHomeState extends State<AccountHome> {
           );
         }
         final material = data['rekomendasi'];
+        final activities = <StudentActivity>[
+          for (final row in (data['latihan'] as List).where(
+            (r) => r['status'] == 'completed' && r['nilai'] != null,
+          ))
+            StudentActivity(
+              title: row['judul'],
+              aspect: row['aspect_code'],
+              score: num.parse(row['nilai'].toString()).round(),
+              finishedAt: DateTime.parse(row['finished_at'] ?? row['tanggal']),
+            ),
+        ];
+        if (tab == 'S4') {
+          final scores = <String, int>{};
+          for (final row in data['latihan']) {
+            if (row['nilai'] != null) {
+              scores.putIfAbsent(
+                row['aspect_code'],
+                () => num.parse(row['nilai'].toString()).round(),
+              );
+            }
+          }
+          return StudentPracticeListPage(
+            catalog: state.requireData['catalog'],
+            recommendedId: material?['materi_id'],
+            reason: material?['alasan'],
+            hasDiagnostic: data['has_diagnostic'],
+            completeBaseline: data['completed'],
+            scores: scores,
+            onOpen: openMaterial,
+          );
+        }
+        if (tab == 'S2') {
+          final recommended = material == null
+              ? null
+              : DemoMaterial(
+                  id: material['materi_id'],
+                  title: material['judul'],
+                  aspect: material['aspect_code'],
+                  level: material['level'],
+                  content: material['konten'],
+                );
+          return StudentOverview(
+            name: profile['nama'],
+            className: profile['kelas'] ?? '',
+            hasActiveTest: data['active_test'],
+            hasAnyDiagnostic: data['has_diagnostic'],
+            completed: data['completed'],
+            completeBaseline: data['completed'],
+            active: recommended,
+            reason: material?['alasan'] ?? '',
+            activities: activities.take(2).toList(),
+            onHistory: () => select('S8'),
+            onPractice: () => select('S4'),
+            onDiagnostic: () => open(ServerDiagnosticPage(api: widget.api)),
+            onStart: () {
+              if (recommended != null) openMaterial(recommended);
+            },
+          );
+        }
+        if (tab == 'S10') return accountSettings();
+        if (tab == 'S9') {
+          return StudentProgressPage(
+            records: state.requireData['records'],
+            activities: activities,
+            completedCount: data['practice_completed'],
+            historyLink: TextButton(
+              onPressed: () => select('S8'),
+              child: const Text('Riwayat dan evaluasi'),
+            ),
+          );
+        }
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Kelas ${profile['kelas']}'),
-            ListTile(
-              title: const Text('Tes diagnostik'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => ServerDiagnosticPage(api: widget.api),
-                ),
-              ),
-            ),
-            ListTile(
-              title: const Text('Perkembangan membaca'),
-              trailing: const Icon(Icons.bar_chart),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => LearningProgress(api: widget.api),
-                ),
-              ),
-            ),
-            ListTile(
-              title: const Text('Daftar latihan'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => ApiListPage(
-                    api: widget.api,
-                    title: 'Daftar latihan',
-                    path: 'siswa/latihan',
-                    empty: 'Belum ada latihan.',
-                    tile: (context, m, _) => ListTile(
-                      title: Text(m['judul']),
-                      subtitle: Text(m['konten']),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => ServerDiagnosticPage(
-                            api: widget.api,
-                            material: m,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const ListTile(title: Text('Rekomendasi belajar')),
-            if (material == null)
-              const Text('Belum ada rekomendasi.')
-            else
-              ListTile(
-                title: Text(material['judul']),
-                subtitle: Text(material['konten']),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => ServerDiagnosticPage(
-                        api: widget.api,
-                        material: material,
-                      ),
-                    ),
-                  );
-                  if (mounted) setState(() => overview = load());
-                },
-              ),
             ListTile(
               title: const Text('Evaluasi bacaan'),
               trailing: const Icon(Icons.chevron_right),
@@ -414,8 +573,26 @@ class _AccountHomeState extends State<AccountHome> {
           ],
         );
       },
-    ),
-  );
+    );
+    if (teacher) {
+      return TeacherShell(
+        screen: screen,
+        name: profile['nama'],
+        pending: pending,
+        body: body,
+        onSelect: select,
+      );
+    }
+    return StudentShell(
+      largerText: largerText,
+      screen: screen,
+      name: profile['nama'],
+      body: body,
+      onSelect: select,
+    );
+  }
+
+  int pending = 0;
 }
 
 class ClassRoster extends StatefulWidget {

@@ -141,7 +141,12 @@ class _EditorState extends State<_Editor> {
 }
 
 class TeacherContentPage extends StatefulWidget {
-  const TeacherContentPage({super.key, required this.api});
+  const TeacherContentPage({
+    super.key,
+    required this.api,
+    this.initialSection = "materi",
+  });
+  final String initialSection;
   final BacaTepatApi api;
   @override
   State<TeacherContentPage> createState() => _TeacherContentPageState();
@@ -149,7 +154,7 @@ class TeacherContentPage extends StatefulWidget {
 
 class _TeacherContentPageState extends State<TeacherContentPage> {
   static const aspects = ['huruf', 'suku_kata', 'kata', 'kalimat'];
-  String section = 'materi';
+  late String section = widget.initialSection;
   int page = 1;
   late Future<Map<String, dynamic>> rows = load();
   Future<Map<String, dynamic>> load() =>

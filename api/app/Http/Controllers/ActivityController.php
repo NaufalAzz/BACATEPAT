@@ -43,9 +43,10 @@ class ActivityController
         if ($id === null) {
             $query->where('s.user_id', $request->user()->id);
         } else {
-            $query->join('classes as c','c.id','=','s.current_class_id')->where('c.teacher_id',$request->user()->id)
-                ->where('e.teacher_id',$request->user()->id)->where('s.id',$id);
+            $query->join('classes as c', 'c.id', '=', 's.current_class_id')->where('c.teacher_id', $request->user()->id)
+                ->where('e.teacher_id', $request->user()->id)->where('s.id', $id);
         }
+
         return $query->orderByDesc('e.evaluated_at')->orderByDesc('e.id')->paginate(30, ['e.id', 'r.target_text_snapshot as bacaan', 'e.accuracy_score', 'e.fluency_score', 'e.comment', 'e.advice', 'e.evaluated_at']);
     }
 
@@ -53,7 +54,26 @@ class ActivityController
     {
         $classes = DB::table('classes')->where('teacher_id', $request->user()->id)->pluck('id');
 
-        return ['data' => ['kelas' => $classes->count(), 'siswa' => DB::table('students')->whereIn('current_class_id', $classes)->count(),
-            'tes_aktif' => DB::table('diagnostic_tests')->whereIn('class_id', $classes)->where('status', 'active')->count()]];
+        $students = DB::table('students')->whereIn('current_class_id', $classes)->where('status', 'aktif')->select('id');
+        $mastery = DB::table('mastery_history')->whereIn('class_id', $classes)->whereIn('student_id', $students)
+            ->selectRaw('aspect_code, score, ROW_NUMBER() OVER (PARTITION BY student_id, aspect_code ORDER BY recorded_at DESC, id DESC) AS ranking');
+        $namedRows = fn ($table) => DB::table($table.' as r')->join('students as s', 's.id', '=', 'r.student_id')
+            ->join('users as u', 'u.id', '=', 's.user_id')->whereIn('r.class_id', $classes);
+        $recordings = DB::table('voice_recordings as r')->join('students as s', 's.id', '=', 'r.student_id')
+            ->join('users as u', 'u.id', '=', 's.user_id')->leftJoin('diagnostic_attempts as d', 'd.id', '=', 'r.diagnostic_attempt_id')
+            ->leftJoin('practice_attempts as p', 'p.id', '=', 'r.practice_attempt_id')->whereIn(DB::raw('COALESCE(d.class_id,p.class_id)'), $classes)
+            ->where('r.status', 'uploaded');
+
+        return ['data' => [
+            'kelas' => $classes->count(), 'siswa' => DB::table('students')->whereIn('current_class_id', $classes)->count(),
+            'aktif' => (clone $students)->count(),
+            'diagnosed' => DB::table('diagnostic_attempts')->whereIn('class_id', $classes)->whereIn('student_id', $students)->where('status', 'completed')->distinct()->count('student_id'),
+            'tes_aktif' => DB::table('diagnostic_tests')->whereIn('class_id', $classes)->where('status', 'active')->count(),
+            'averages' => DB::query()->fromSub($mastery, 'latest')->where('ranking', 1)->groupBy('aspect_code')->selectRaw('aspect_code, ROUND(AVG(score)) AS score')->get(),
+            'recommendations' => $namedRows('recommendations')->join('materials as m', 'm.id', '=', 'r.material_id')->where('r.status', 'active')->orderByDesc('r.id')->get(['u.name', 'm.title', 'r.aspect_code', 'r.target_level', 'r.reason']),
+            'gaps' => $namedRows('material_gaps')->whereNull('r.resolved_at')->orderByDesc('r.id')->get(['u.name', 'r.aspect_code', 'r.target_level', 'r.reason']),
+            'pending' => (clone $recordings)->count(),
+            'recordings' => $recordings->orderBy('r.submitted_at')->limit(10)->get(['u.name', 'r.target_text_snapshot', 'r.duration_seconds']),
+        ]];
     }
 }

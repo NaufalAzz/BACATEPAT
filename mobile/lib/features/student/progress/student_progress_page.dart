@@ -7,7 +7,17 @@ import '../student_demo_store.dart';
 import '../student_widgets.dart';
 
 class StudentProgressPage extends StatefulWidget {
-  const StudentProgressPage({super.key});
+  const StudentProgressPage({
+    super.key,
+    this.records,
+    this.activities,
+    this.historyLink,
+    this.completedCount,
+  });
+  final List<MasteryRecord>? records;
+  final List<StudentActivity>? activities;
+  final Widget? historyLink;
+  final int? completedCount;
 
   @override
   State<StudentProgressPage> createState() => _StudentProgressPageState();
@@ -37,12 +47,25 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
   @override
   Widget build(BuildContext context) {
     final store = StudentDemoStore.instance;
-    final latestMastery = store.latestMasteryByAspect;
-    final diagnosticScores = store.diagnosticScores;
+    final records = widget.records ?? store.masteryHistory;
+    final activities = widget.activities ?? store.activities;
+    final latestMastery = widget.records == null
+        ? store.latestMasteryByAspect
+        : {for (final row in records) row.aspect: row};
+    final diag = records.where((row) => row.source == 'diagnostik').toList()
+      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final diagnosticScores = widget.records == null
+        ? store.diagnosticScores
+        : {
+            for (final row in diag.where(
+              (row) => row.sourceId == diag.first.sourceId,
+            ))
+              row.aspect: row.score,
+          };
     final diagnosticScore = diagnosticScores[_aspect];
-    final history = store.activities.where((item) => item.aspect == _aspect);
+    final history = activities.where((item) => item.aspect == _aspect);
     final masteryHistory =
-        store.masteryHistory.where((item) => item.aspect == _aspect).toList()
+        records.where((item) => item.aspect == _aspect).toList()
           ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     final chartRecords = masteryHistory.reversed.toList(growable: false);
     return ListView(
@@ -95,7 +118,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
                       ),
                     ),
                     Text(
-                      '${store.activities.length} latihan sudah selesai',
+                      '${widget.completedCount ?? activities.length} latihan sudah selesai',
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppTokens.mutedText,
@@ -105,7 +128,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
                 ),
               ),
               Text(
-                '${store.activities.length}',
+                '${widget.completedCount ?? activities.length}',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -291,6 +314,7 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
             ],
           ),
         ),
+        if (widget.historyLink != null) widget.historyLink!,
       ],
     );
   }
