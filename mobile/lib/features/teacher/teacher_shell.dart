@@ -23,7 +23,7 @@ class TeacherShell extends StatelessWidget {
         foregroundColor: AppTokens.text,
         surfaceTintColor: Colors.white,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
       ),
     ),
     child: Scaffold(
@@ -48,6 +48,7 @@ class TeacherShell extends StatelessWidget {
           )
         : null,
     title: Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         const BacaTepatMark(size: 28),
         const SizedBox(width: 8),

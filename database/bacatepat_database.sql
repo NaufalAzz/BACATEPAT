@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS materials (
   level TINYINT UNSIGNED NOT NULL,
   title VARCHAR(150) NOT NULL,
   content MEDIUMTEXT NOT NULL,
+  grade TINYINT UNSIGNED NULL,
   content_asset_key VARCHAR(255) NULL,
   ai_generated TINYINT UNSIGNED NOT NULL DEFAULT 0,
   status ENUM('draft','active','archived') NOT NULL DEFAULT 'draft',

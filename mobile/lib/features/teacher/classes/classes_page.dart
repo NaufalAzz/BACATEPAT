@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/api/learning_session.dart';
+import '../../../core/api/bacatepat_api.dart';
 import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../teacher_demo_store.dart';
@@ -66,6 +68,7 @@ class ClassesPage extends StatelessWidget {
     final store = TeacherDemoStore.instance;
     final current = id == null ? null : store.classById(id);
     final nameController = TextEditingController(text: current?.name ?? '');
+    bool saving = false;
     int grade = current?.grade ?? 1;
     showDialog<void>(
       context: context,
@@ -99,25 +102,62 @@ class ClassesPage extends StatelessWidget {
               child: const Text('Batal'),
             ),
             FilledButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                final duplicate = store.accessibleClasses.any(
-                  (item) =>
-                      item.name.toLowerCase() == name.toLowerCase() &&
-                      item.id != id,
-                );
-                if (duplicate) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Nama kelas sudah digunakan.'),
-                    ),
-                  );
-                  return;
-                }
-                store.saveClass(id: id, name: name, grade: grade);
-                Navigator.pop(dialogContext);
-              },
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) return;
+                      final duplicate = store.accessibleClasses.any(
+                        (item) =>
+                            item.name.toLowerCase() == name.toLowerCase() &&
+                            item.id != id,
+                      );
+                      if (duplicate) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Nama kelas sudah digunakan.'),
+                          ),
+                        );
+                        return;
+                      }
+                      if (LearningSession.enabled) {
+                        if (saving) return;
+                        setDialogState(() => saving = true);
+                        final now = DateTime.now();
+                        final startYear = now.month >= 7
+                            ? now.year
+                            : now.year - 1;
+                        try {
+                          await LearningSession.api.request(
+                            id == null ? 'guru/kelas' : 'guru/kelas/$id',
+                            method: id == null ? 'POST' : 'PUT',
+                            body: {
+                              'nama_kelas': name,
+                              'tingkat': grade,
+                              'tahun_ajaran':
+                                  current?.year ??
+                                  '$startYear/${startYear + 1}',
+                            },
+                          );
+                          await LearningSession.refresh();
+                        } on ApiError catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error.message)),
+                            );
+                          }
+                          return;
+                        } finally {
+                          if (context.mounted) {
+                            setDialogState(() => saving = false);
+                          }
+                        }
+                      } else {
+                        store.saveClass(id: id, name: name, grade: grade);
+                      }
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
+                    },
               child: const Text('Simpan'),
             ),
           ],

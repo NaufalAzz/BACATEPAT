@@ -112,7 +112,7 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   SizedBox(height: constraints.maxHeight * .215),
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.center,
                     child: _brandName(context),
                   ),
                   const SizedBox(height: 42),
@@ -134,6 +134,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _brandName(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
+    mainAxisAlignment: MainAxisAlignment.center,
     children: [
       const BacaTepatMark(size: 34),
       const SizedBox(width: 8),
@@ -223,9 +224,8 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          validator: (value) => value == null || value.isEmpty
-              ? 'Isi kata sandi'
-              : null,
+          validator: (value) =>
+              value == null || value.isEmpty ? 'Isi kata sandi' : null,
         ),
         const SizedBox(height: 18),
         SizedBox(

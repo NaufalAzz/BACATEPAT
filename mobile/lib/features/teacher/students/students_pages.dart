@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/api/bacatepat_api.dart';
+import '../../../core/api/learning_session.dart';
 import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../app/app_session.dart';
@@ -243,6 +245,7 @@ class StudentFormPage extends StatefulWidget {
 }
 
 class _StudentFormPageState extends State<StudentFormPage> {
+  bool _saving = false;
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _username;
@@ -392,7 +395,7 @@ class _StudentFormPageState extends State<StudentFormPage> {
                   key: const ValueKey('save-student'),
                   label: isEditing ? 'Simpan perubahan' : 'Simpan siswa',
                   icon: Icons.save_outlined,
-                  onPressed: _save,
+                  onPressed: _saving ? null : _save,
                 ),
                 if (isEditing) ...[
                   const SizedBox(height: AppTokens.space8),
@@ -414,7 +417,9 @@ class _StudentFormPageState extends State<StudentFormPage> {
     );
   }
 
-  void _save() {
+  /// Persist teacher changes before returning to the refreshed class overview.
+  Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     final store = TeacherDemoStore.instance;
     final duplicate = store.students.any(
@@ -426,6 +431,35 @@ class _StudentFormPageState extends State<StudentFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Username sudah digunakan.')),
       );
+      return;
+    }
+    if (LearningSession.enabled) {
+      setState(() => _saving = true);
+      try {
+        final id = widget.studentId;
+        await LearningSession.api.request(
+          id == null ? 'guru/siswa' : 'guru/siswa/$id',
+          method: id == null ? 'POST' : 'PUT',
+          body: {
+            'nama': _name.text.trim(),
+            'username': _username.text.trim(),
+            if (id == null) 'password': _password.text,
+            'kelas_id': _classId,
+            'nama_wali': _guardian.text.trim(),
+            'persetujuan_wali': _parentConsent,
+            'persetujuan_ai': _aiConsent,
+          },
+        );
+        await LearningSession.refresh();
+        if (mounted) Navigator.pop(context);
+      } on ApiError catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error.message)));
+        }
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
       return;
     }
     store.saveStudent(

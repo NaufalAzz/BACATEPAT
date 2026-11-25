@@ -26,7 +26,8 @@ class LearningDataController
             $scoped = fn ($table) => DB::table($table)->whereIn('student_id', $students->pluck('id'))
                 ->when($teacher, fn ($q) => $q->whereIn($table.'.class_id', $classes->pluck('id')));
             $materials = DB::table('materials')->where('teacher_id', $owner->id)->when(! $teacher, fn ($q) => $q->where('status', 'active'))
-                ->get(['id', 'aspect_code', 'level', 'title', 'content', 'status']);
+                ->when(! $teacher, fn ($q) => $q->where(fn ($row) => $row->whereNull('grade')->orWhere('grade', $classes->first()->grade)))
+                ->get(['id', 'grade', 'aspect_code', 'level', 'title', 'content', 'status']);
             $questions = DB::table('questions')->where('teacher_id', $owner->id)
                 ->when(! $teacher, fn ($q) => $q->whereIn('material_id', $materials->pluck('id'))->where('review_status', 'approved')->whereIn('usage_scope', ['practice', 'both']))
                 ->get(['id', 'material_id', 'aspect_code', 'level', 'question_type', 'usage_scope', 'prompt', 'stimulus_text', 'target_text', 'hint', 'review_status']);

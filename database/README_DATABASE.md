@@ -248,7 +248,7 @@ cmd.exe /c "mysql -u root -p bacatepat < database\bacatepat_demo_seed.sql"
 
 Periksa server dan target database sebelum import. Akun DB memerlukan hak untuk membuat schema/tabel. Seed menggunakan ID tetap dalam rentang 900001–909999 dan `INSERT IGNORE`: baris yang sudah ada tidak diperbarui, sementara impor ulang tidak menambah baris. Rerun pada schema yang sama menghasilkan peringatan duplicate-key 1062 yang disengaja dari `INSERT IGNORE`; data tidak berubah. Karena ID-nya tetap, jangan gunakan seed ini untuk database berisi data atau jika rentang tersebut sudah dipakai.
 
-Database lokal yang sudah memakai seed lama dapat diperbarui dengan `database/upgrade_local_classroom.sql`.
+Untuk database lokal Laravel dengan seed lama, jalankan `php artisan migrate` dari direktori `api` untuk menambahkan kolom kelas pada materi, lalu perbarui akun melalui `database/upgrade_local_classroom.sql`.
 
 ### Akun lokal
 

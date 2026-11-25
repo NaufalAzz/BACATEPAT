@@ -44,8 +44,8 @@ class DiagnosticPlacement
         if (! $target) {
             return;
         }
-        $teacher = DB::table('classes')->where('id', $attempt->class_id)->value('teacher_id');
-        $material = DB::table('materials')->where('teacher_id', $teacher)->where('status', 'active')
+        $class = DB::table('classes')->where('id', $attempt->class_id)->firstOrFail(['teacher_id', 'grade']);
+        $material = DB::table('materials')->where('teacher_id', $class->teacher_id)->where('status', 'active')->where(fn ($q) => $q->whereNull('grade')->orWhere('grade', $class->grade))
             ->where('aspect_code', $target['aspect_code'])->where('level', $target['target_level'])
             ->orderByRaw('EXISTS (SELECT 1 FROM practice_attempts WHERE student_id = ? AND material_id = materials.id)', [$student->id])
             ->orderBy('id')->value('id');

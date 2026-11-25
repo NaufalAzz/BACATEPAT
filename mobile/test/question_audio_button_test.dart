@@ -94,11 +94,11 @@ void main() {
       QuestionSpeechKind.word,
     );
 
-    expect(questionSpeechProfileFor(QuestionSpeechKind.letter).rate, 0.50);
-    expect(questionSpeechProfileFor(QuestionSpeechKind.syllable).rate, 0.50);
-    expect(questionSpeechProfileFor(QuestionSpeechKind.word).rate, 0.51);
-    expect(questionSpeechProfileFor(QuestionSpeechKind.sentence).rate, 0.52);
-    expect(questionSpeechProfileFor(QuestionSpeechKind.instruction).rate, 0.53);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.letter).rate, 0.40);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.syllable).rate, 0.40);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.word).rate, 0.41);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.sentence).rate, 0.42);
+    expect(questionSpeechProfileFor(QuestionSpeechKind.instruction).rate, 0.43);
     expect(questionSpeechProfileFor(QuestionSpeechKind.sentence).pitch, 1.02);
   });
 

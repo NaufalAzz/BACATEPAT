@@ -323,7 +323,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text('Tepat! Kamu menemukan bunyi huruf awalnya.'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 }

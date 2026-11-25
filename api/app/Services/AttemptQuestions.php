@@ -30,8 +30,13 @@ enum AttemptQuestions: string
 
     public function saveChoice(int $id, int $questionId, string $choice): bool
     {
-        $row = DB::table($this->value.'_attempt_answers')->where($this->value.'_attempt_id', $id)->where('question_id', $questionId)->firstOrFail();
+        $row = DB::table($this->value.'_attempt_answers')->where($this->value.'_attempt_id', $id)->where('question_id', $questionId)->lockForUpdate()->firstOrFail();
         abort_unless($row->question_type === 'multiple_choice', 422, 'Jawaban lisan membutuhkan rekaman.');
+        // A network retry may replay the same answer without changing the score.
+        if ($row->answered_at !== null) {
+            abort_if($row->selected_answer !== $choice, 409, 'Jawaban pertama sudah tersimpan.');
+            return (bool) $row->is_correct;
+        }
         $option = DB::table($this->value.'_answer_options')->where($this->value.'_answer_id', $row->id)
             ->where('option_text_snapshot', $choice)->first();
         abort_unless($option, 422, 'Pilihan tidak tersedia.');
@@ -44,12 +49,15 @@ enum AttemptQuestions: string
     public function present(int $id, bool $audioAllowed): array
     {
         $answers = DB::table($this->value.'_attempt_answers')->where($this->value.'_attempt_id', $id)->orderBy('id')
-            ->get(['id', 'question_id as soal_id', 'prompt_snapshot as pertanyaan', 'target_text_snapshot as teks_target', 'stimulus_text_snapshot as stimulus', 'question_type as tipe', 'selected_answer as jawaban', 'answered_at']);
+            ->get(['id', 'question_id as soal_id', 'prompt_snapshot as pertanyaan', 'target_text_snapshot as teks_target', 'stimulus_text_snapshot as stimulus', 'question_type as tipe', 'selected_answer as jawaban', 'is_correct', 'answered_at']);
         $options = DB::table($this->value.'_answer_options')->whereIn($this->value.'_answer_id', $answers->pluck('id'))
             ->orderBy('position')->get([$this->value.'_answer_id', 'option_text_snapshot'])->groupBy($this->value.'_answer_id');
         foreach ($answers as $answer) {
             $answer->terkirim = $answer->answered_at !== null;
-            unset($answer->answered_at);
+            if ($this === self::Practice && $answer->terkirim) {
+                $answer->benar = (bool) $answer->is_correct;
+            }
+            unset($answer->answered_at, $answer->is_correct);
             $answer->opsi = $options->get($answer->id, collect())->pluck('option_text_snapshot');
         }
 

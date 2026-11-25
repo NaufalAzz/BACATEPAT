@@ -890,12 +890,20 @@ class StudentDemoStore extends ChangeNotifier {
     }
   }
 
+  /// Shared readings remain available when a teacher has not assigned a grade.
+  bool canRead(DemoMaterial material) =>
+      material.grade == null ||
+      (currentStudentId != null &&
+          TeacherDemoStore.instance.classById(student.classId)?.grade ==
+              material.grade);
+
   List<AdaptiveMaterial> get _adaptiveMaterials => TeacherDemoStore
       .instance
       .materials
       .where(
         (material) =>
             material.status == 'aktif' &&
+            canRead(material) &&
             TeacherDemoStore.instance
                 .practiceQuestionsForMaterial(material.id)
                 .isNotEmpty,

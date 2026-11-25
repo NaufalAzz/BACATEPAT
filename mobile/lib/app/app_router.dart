@@ -18,9 +18,34 @@ abstract final class AppRouter {
     ...NavigationPlan.student,
   ];
 
+  /// Keep navigation brief and respect the device’s reduced-motion preference.
+  static Route<void> _readingRoute({
+    required RouteSettings settings,
+    required WidgetBuilder builder,
+  }) => PageRouteBuilder<void>(
+    settings: settings,
+    transitionDuration: const Duration(milliseconds: 220),
+    reverseTransitionDuration: const Duration(milliseconds: 180),
+    pageBuilder: (context, _, _) => builder(context),
+    transitionsBuilder: (context, animation, _, child) {
+      if (MediaQuery.disableAnimationsOf(context)) return child;
+      final eased = animation.drive(CurveTween(curve: Curves.easeOutCubic));
+      return FadeTransition(
+        opacity: eased,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, .025),
+            end: Offset.zero,
+          ).animate(eased),
+          child: child,
+        ),
+      );
+    },
+  );
+
   static Route<void> onGenerateRoute(RouteSettings settings) {
     if (settings.name == '/welcome') {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) => const RoleSelectionPage(),
       );
@@ -35,7 +60,7 @@ abstract final class AppRouter {
     }
     final resolvedScreen = screen;
     if (resolvedScreen == null) {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) => RouteMessagePage(
           title: 'Halaman tidak ditemukan',
@@ -51,7 +76,7 @@ abstract final class AppRouter {
     }
 
     if (resolvedScreen.id == 'G1' || resolvedScreen.id == 'S1') {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) => LoginPage(role: resolvedScreen.role),
       );
@@ -67,13 +92,13 @@ abstract final class AppRouter {
                   AppSession.teacherId ==
                       TeacherDemoStore.instance.demoTeacherId);
     if (activeRole == null || !hasValidIdentity) {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) => const RoleSelectionPage(),
       );
     }
     if (activeRole != resolvedScreen.role) {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) => RouteMessagePage(
           title: 'Akses tidak tersedia',
@@ -89,7 +114,7 @@ abstract final class AppRouter {
     }
 
     if (activeRole == AppRole.teacher) {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) =>
             TeacherShell(screen: resolvedScreen, arguments: settings.arguments),
@@ -97,7 +122,7 @@ abstract final class AppRouter {
     }
 
     if (resolvedScreen.placement == NavigationPlacement.primary) {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) =>
             StudentShell(screen: resolvedScreen, arguments: settings.arguments),
@@ -105,14 +130,14 @@ abstract final class AppRouter {
     }
 
     if (activeRole == AppRole.student) {
-      return MaterialPageRoute<void>(
+      return _readingRoute(
         settings: settings,
         builder: (_) =>
             StudentShell(screen: resolvedScreen, arguments: settings.arguments),
       );
     }
 
-    return MaterialPageRoute<void>(
+    return _readingRoute(
       settings: settings,
       builder: (_) => RouteMessagePage.forScreen(resolvedScreen),
     );

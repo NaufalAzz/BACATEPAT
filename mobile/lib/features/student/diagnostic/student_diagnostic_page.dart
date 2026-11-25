@@ -142,7 +142,14 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
             padding: const EdgeInsets.only(bottom: AppTokens.space8),
             child: OutlinedButton(
               key: ValueKey('diagnostic-answer-$i'),
-              onPressed: () => setState(() => _answers[_index] = i),
+              onPressed: _answers[_index] != null
+                  ? null
+                  : () {
+                      // Keep the first choice even if two taps arrive before a rebuild.
+                      if (_answers[_index] == null) {
+                        setState(() => _answers[_index] = i);
+                      }
+                    },
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(58),
                 backgroundColor: _answers[_index] == i

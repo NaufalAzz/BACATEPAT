@@ -34,6 +34,9 @@ class StudentAdminController
                 $student = DB::table('students')->insertGetId(['user_id' => $user, 'current_class_id' => $class->id,
                     'guardian_name' => $data['nama_wali'], 'student_number' => $data['nis'] ?? null]);
                 $this->addMembership($student, $class->id, $request->user()->id);
+                if ($request->has('persetujuan_wali')) {
+                    $this->consent($request, $student);
+                }
 
                 return response()->json(['data' => ['siswa_id' => $student, 'user_id' => $user, 'nama' => $data['nama'], 'kelas' => $class->name]], 201);
             });
@@ -65,6 +68,12 @@ class StudentAdminController
                         'parent_consent' => false, 'ai_consent' => false, 'recorded_at' => now(), 'recorded_by_teacher_id' => $request->user()->id]);
                 }
                 DB::table('students')->where('id', $id)->update($profile);
+                if ($request->has('kelas_id')) {
+                    $this->transfer($request, $id);
+                }
+                if ($request->has('persetujuan_wali')) {
+                    $this->consent($request, $id);
+                }
 
                 return ['success' => true];
             });

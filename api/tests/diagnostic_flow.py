@@ -78,6 +78,8 @@ q = call("POST", "guru/soal", {"materi_id":material,"aspek":"huruf","tingkat_kes
 call("PATCH",f"guru/soal/{q}/review",{"status_review":"disetujui"},teacher)
 practice = call("POST","siswa/latihan/mulai",{"materi_id":material},student,201)["data"]["hasil_id"]
 call("POST",f"siswa/latihan/{practice}/jawaban",{"soal_id":q,"jawaban":"B"},student)
+call("POST",f"siswa/latihan/{practice}/jawaban",{"soal_id":q,"jawaban":"B"},student)
+call("POST",f"siswa/latihan/{practice}/jawaban",{"soal_id":q,"jawaban":"A"},student,409)
 assert float(call("POST",f"siswa/latihan/{practice}/selesai",{},student)["data"]["skor"]) == 0
 progress = call("GET","siswa/perkembangan",token=student)["data"]["aspek"]
 assert len(progress["huruf"]) == 2
@@ -160,6 +162,12 @@ assert call("GET", "siswa/latihan/riwayat", token=peer)["data"] == []
 assert call("GET", "siswa/evaluasi", token=peer)["data"] == []
 own_data = call("GET", "auth/learning-data", token=student)["data"]
 peer_data = call("GET", "auth/learning-data", token=peer)["data"]
+assert any(m["grade"] == 1 for m in own_data["materials"])
+assert all(m["grade"] in (None, 1) for m in own_data["materials"])
+grade_three_material = call("POST", "guru/materi", {"judul": "Cerita pendek", "aspek": "kalimat",
+    "kelas": 3, "tingkat_kesulitan": 1, "konten": "Baca lalu ceritakan kembali.", "terbitkan": True}, teacher, 201)["data"]["id"]
+call("POST", "siswa/latihan/mulai", {"materi_id": grade_three_material}, student, 404)
+call("POST", "guru/siswa", {"nama": "Percobaan"}, student, 403)
 assert [s["id"] for s in own_data["students"]] == [student_id]
 assert any(a["id"] == oral_attempt and float(a["score"]) == 90 for a in own_data["practice"])
 assert [s["username"] for s in peer_data["students"]] == [peer_name]

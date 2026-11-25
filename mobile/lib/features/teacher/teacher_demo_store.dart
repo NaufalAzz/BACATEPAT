@@ -53,6 +53,7 @@ class DemoMaterial {
     required this.aspect,
     required this.level,
     required this.content,
+    this.grade,
     this.status = 'aktif',
     this.fromAi = false,
   });
@@ -62,6 +63,7 @@ class DemoMaterial {
   String aspect;
   int level;
   String content;
+  int? grade;
   String status;
   bool fromAi;
 }
@@ -410,6 +412,7 @@ final class TeacherDemoStore extends ChangeNotifier {
     ),
     DemoMaterial(
       id: 6,
+      grade: 1,
       title: 'Kelas 1 · Bunyi Apa?',
       aspect: 'suku_kata',
       level: 1,
@@ -417,6 +420,7 @@ final class TeacherDemoStore extends ChangeNotifier {
     ),
     DemoMaterial(
       id: 7,
+      grade: 2,
       title: 'Kelas 2 · Mengenal Perasaan',
       aspect: 'kata',
       level: 1,
@@ -424,6 +428,7 @@ final class TeacherDemoStore extends ChangeNotifier {
     ),
     DemoMaterial(
       id: 8,
+      grade: 3,
       title: 'Kelas 3 · Ayo, Main!',
       aspect: 'kalimat',
       level: 2,
@@ -625,6 +630,7 @@ final class TeacherDemoStore extends ChangeNotifier {
             aspect: r['aspect_code'],
             level: r['level'],
             content: r['content'],
+            grade: r['grade'],
             status:
                 const {'active': 'aktif', 'archived': 'arsip'}[r['status']] ??
                 'draf',
@@ -702,6 +708,7 @@ final class TeacherDemoStore extends ChangeNotifier {
             advice: r['advice'] ?? '',
           ),
       ]);
+    notifyListeners();
   }
 
   String teacherName = 'Rina Marlina';
@@ -724,7 +731,10 @@ final class TeacherDemoStore extends ChangeNotifier {
       username.trim() == 'burina' && password == 'rumahmelati';
   bool authenticateStudent(String username, String password) {
     final student = studentByUsername(username);
-    return password.isNotEmpty && student != null && student.active && student.password == password;
+    return password.isNotEmpty &&
+        student != null &&
+        student.active &&
+        student.password == password;
   }
 
   DemoClass? classById(int id) =>
@@ -892,12 +902,14 @@ final class TeacherDemoStore extends ChangeNotifier {
     required String aspect,
     required int level,
     required String content,
+    int? grade,
     bool fromAi = false,
   }) {
     if (id == null) {
       materials.add(
         DemoMaterial(
           id: _materialId++,
+          grade: grade,
           title: title,
           aspect: aspect,
           level: level,
@@ -912,7 +924,8 @@ final class TeacherDemoStore extends ChangeNotifier {
         ..title = title
         ..aspect = aspect
         ..level = level
-        ..content = content;
+        ..content = content
+        ..grade = grade;
     }
     notifyListeners();
   }

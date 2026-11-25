@@ -59,8 +59,8 @@ class TeacherReviewController
 
         return DB::transaction(function () use ($request, $id, $data) {
             $teacher = $request->user()->id;
-            $student = DB::table('students as s')->join('classes as c', 'c.id', '=', 's.current_class_id')->where('c.teacher_id', $teacher)->where('s.id', $id)->lockForUpdate()->firstOrFail(['s.*']);
-            $material = DB::table('materials')->where('teacher_id', $teacher)->where('status', 'active')->where('id', $data['materi_id'])->firstOrFail();
+            $student = DB::table('students as s')->join('classes as c', 'c.id', '=', 's.current_class_id')->where('c.teacher_id', $teacher)->where('s.id', $id)->lockForUpdate()->firstOrFail(['s.*', 'c.grade']);
+            $material = DB::table('materials')->where('teacher_id', $teacher)->where('status', 'active')->where(fn ($q) => $q->whereNull('grade')->orWhere('grade', $student->grade))->where('id', $data['materi_id'])->firstOrFail();
             DB::table('recommendations')->where('student_id', $id)->where('status', 'active')->update(['status' => 'superseded', 'closed_at' => now()]);
             $rec = DB::table('recommendations')->insertGetId(['student_id' => $id, 'class_id' => $student->current_class_id, 'material_id' => $material->id,
                 'aspect_code' => $material->aspect_code, 'target_level' => $material->level, 'source' => 'teacher', 'created_by_teacher_id' => $teacher, 'reason' => $data['alasan'], 'created_at' => now()]);

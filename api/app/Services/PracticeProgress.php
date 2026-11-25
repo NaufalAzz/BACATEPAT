@@ -55,8 +55,8 @@ class PracticeProgress
         if (! $target) {
             return;
         }
-        $teacher = DB::table('classes')->where('id', $attempt->class_id)->value('teacher_id');
-        $material = DB::table('materials')->where('teacher_id', $teacher)->where('status', 'active')->where('aspect_code', $target)->where('level', $level)
+        $class = DB::table('classes')->where('id', $attempt->class_id)->firstOrFail(['teacher_id', 'grade']);
+        $material = DB::table('materials')->where('teacher_id', $class->teacher_id)->where('status', 'active')->where(fn ($q) => $q->whereNull('grade')->orWhere('grade', $class->grade))->where('aspect_code', $target)->where('level', $level)
             ->orderByRaw('id = ? '.($score < 60 ? 'DESC' : 'ASC'), [$attempt->material_id])->orderBy('id')->value('id');
         $values = ['student_id' => $student->id, 'class_id' => $attempt->class_id, 'aspect_code' => $target, 'target_level' => $level, 'created_at' => now(), 'reason' => $reason];
         if ($material) {

@@ -11,13 +11,13 @@ class QuestionSpeechProfile {
 
 const questionSpeechProfiles = <QuestionSpeechKind, QuestionSpeechProfile>{
   QuestionSpeechKind.instruction: QuestionSpeechProfile(
-    rate: 0.53,
+    rate: 0.43,
     pitch: 1.03,
   ),
-  QuestionSpeechKind.letter: QuestionSpeechProfile(rate: 0.50, pitch: 1.0),
-  QuestionSpeechKind.syllable: QuestionSpeechProfile(rate: 0.50, pitch: 1.0),
-  QuestionSpeechKind.word: QuestionSpeechProfile(rate: 0.51, pitch: 1.0),
-  QuestionSpeechKind.sentence: QuestionSpeechProfile(rate: 0.52, pitch: 1.02),
+  QuestionSpeechKind.letter: QuestionSpeechProfile(rate: 0.40, pitch: 1.0),
+  QuestionSpeechKind.syllable: QuestionSpeechProfile(rate: 0.40, pitch: 1.0),
+  QuestionSpeechKind.word: QuestionSpeechProfile(rate: 0.41, pitch: 1.0),
+  QuestionSpeechKind.sentence: QuestionSpeechProfile(rate: 0.42, pitch: 1.02),
 };
 
 QuestionSpeechProfile questionSpeechProfileFor(QuestionSpeechKind kind) =>

@@ -51,10 +51,13 @@ class ContentController
     public function material(Request $request, ?int $id = null)
     {
         $data = $request->validate(['judul' => 'required|string|max:150', 'aspek' => 'required|exists:learning_aspects,code',
-            'tingkat_kesulitan' => 'required|integer|between:1,3', 'konten' => 'required|string|max:100000']);
+            'tingkat_kesulitan' => 'required|integer|between:1,3', 'kelas' => 'nullable|integer|between:1,3', 'terbitkan' => 'sometimes|boolean', 'konten' => 'required|string|max:100000']);
         $values = ['title' => $data['judul'], 'aspect_code' => $data['aspek'], 'level' => $data['tingkat_kesulitan'], 'content' => $data['konten']];
+        if (array_key_exists('kelas', $data)) {
+            $values['grade'] = $data['kelas'];
+        }
         if ($id === null) {
-            $id = DB::table('materials')->insertGetId($values + ['teacher_id' => $request->user()->id]);
+            $id = DB::table('materials')->insertGetId($values + ['teacher_id' => $request->user()->id, 'status' => ($data['terbitkan'] ?? false) ? 'active' : 'draft']);
 
             return response()->json(['data' => ['id' => $id]], 201);
         }

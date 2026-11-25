@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_session.dart';
+import '../../../core/api/learning_session.dart';
+import '../../../core/api/bacatepat_api.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../student/mastery_history_chart.dart';
 import '../../student/student_demo_store.dart';
@@ -42,7 +44,8 @@ class _ProgressPageState extends State<ProgressPage> {
         ? 'Rata-rata kelas'
         : store.studentById(_studentId!)?.name ?? 'Siswa';
 
-    return ListView(
+    final history = ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
         const TeacherPageHeading(
@@ -169,6 +172,21 @@ class _ProgressPageState extends State<ProgressPage> {
         ),
       ],
     );
+    if (!LearningSession.enabled) return history;
+    return RefreshIndicator(onRefresh: _refreshHistory, child: history);
+  }
+
+  /// Fetch results submitted on a student's device since the teacher signed in.
+  Future<void> _refreshHistory() async {
+    try {
+      await LearningSession.refresh();
+      if (mounted) setState(() {});
+    } on ApiError catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 }
 

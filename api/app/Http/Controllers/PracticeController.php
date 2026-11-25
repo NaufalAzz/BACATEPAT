@@ -17,8 +17,8 @@ class PracticeController
     public function available(Request $request)
     {
         $student = $this->student($request);
-        $teacher = DB::table('classes')->where('id', $student->current_class_id)->value('teacher_id');
-        $materials = DB::table('materials as m')->where('m.teacher_id', $teacher)->where('m.status', 'active')
+        $class = DB::table('classes')->where('id', $student->current_class_id)->firstOrFail(['teacher_id', 'grade']);
+        $materials = DB::table('materials as m')->where('m.teacher_id', $class->teacher_id)->where('m.status', 'active')->where(fn ($q) => $q->whereNull('m.grade')->orWhere('m.grade', $class->grade))
             ->whereExists(function ($q) {
                 $q->selectRaw('1')->from('questions as q')->whereColumn('q.material_id', 'm.id')->whereColumn('q.aspect_code', 'm.aspect_code')
                     ->whereColumn('q.level', 'm.level')->where('q.review_status', 'approved')->whereIn('q.usage_scope', ['practice', 'both']);
@@ -33,14 +33,14 @@ class PracticeController
 
         return DB::transaction(function () use ($request, $data) {
             $student = $this->student($request);
-            $teacher = DB::table('classes')->where('id', $student->current_class_id)->value('teacher_id');
-            $material = DB::table('materials')->where('id', $data['materi_id'])->where('teacher_id', $teacher)->where('status', 'active')->firstOrFail();
+            $class = DB::table('classes')->where('id', $student->current_class_id)->firstOrFail(['teacher_id', 'grade']);
+            $material = DB::table('materials')->where('id', $data['materi_id'])->where('teacher_id', $class->teacher_id)->where('status', 'active')->where(fn ($q) => $q->whereNull('grade')->orWhere('grade', $class->grade))->firstOrFail();
             $attempts = DB::table('practice_attempts')->where('student_id', $student->id)->where('material_id', $material->id);
             $running = (clone $attempts)->where('class_id', $student->current_class_id)->where('status', 'in_progress')->value('id');
             if ($running) {
                 return ['data' => AttemptQuestions::Practice->present($running, (bool) $student->parent_consent)];
             }
-            $questions = DB::table('questions')->where('teacher_id', $teacher)->where('material_id', $material->id)
+            $questions = DB::table('questions')->where('teacher_id', $class->teacher_id)->where('material_id', $material->id)
                 ->where('aspect_code', $material->aspect_code)->where('level', $material->level)->where('review_status', 'approved')
                 ->whereIn('usage_scope', ['both', 'practice'])->orderBy('id')->get();
             abort_if($questions->isEmpty(), 422, 'Belum ada soal latihan yang disetujui.');

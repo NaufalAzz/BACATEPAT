@@ -33,6 +33,7 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
             .where(
               (item) =>
                   item.status == 'aktif' &&
+                  studentStore.canRead(item) &&
                   (_aspect == 'semua' || item.aspect == _aspect),
             )
             .toList();
@@ -223,7 +224,9 @@ class StudentMaterialDetailPage extends StatelessWidget {
     final material = materialId == null
         ? null
         : store.materialById(materialId!);
-    if (material == null || material.status != 'aktif') {
+    if (material == null ||
+        material.status != 'aktif' ||
+        !StudentDemoStore.instance.canRead(material)) {
       return const Center(
         child: StudentEmptyState(
           message: 'Materi ini belum tersedia. Coba pilih latihan lain ya!',
@@ -327,6 +330,15 @@ class StudentMaterialDetailPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTokens.space12),
+              Center(
+                child: QuestionAudioButton(
+                  key: ValueKey('reading-audio-${material.id}'),
+                  label: 'Dengarkan bacaan',
+                  text: reading.first.replaceAll('•', ', '),
+                  kind: questionSpeechKindForAspect(material.aspect),
+                ),
+              ),
+              const SizedBox(height: AppTokens.space8),
               const Text(
                 'Tunjuk setiap huruf atau kata sambil membacanya. Pelan-pelan saja.',
               ),
@@ -405,10 +417,23 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
           correctFeedback: 'Bagus, jawabanmu tepat!',
         ),
     ];
+    // Resume after saved answers, including the last answer before submission.
+    final rows = List<Map<String, dynamic>>.from(data['soal']);
+    if (rows.isEmpty) return;
+    _questionIndex = rows.indexWhere((row) => row['terkirim'] != true);
+    if (_questionIndex < 0) {
+      _questionIndex = rows.length - 1;
+      _selected = _questions.last.choices.indexOf(rows.last['jawaban']);
+      _correctSelection = rows.last['benar'] == true;
+    }
+    _correct = rows
+        .take(_questionIndex)
+        .where((row) => row['benar'] == true)
+        .length;
   }
 
   Future<void> _choose(int index) async {
-    if (_busy) return;
+    if (_busy || _selected != null) return;
     if (LearningSession.enabled) {
       _busy = true;
       try {

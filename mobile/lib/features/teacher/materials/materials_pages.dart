@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/api/bacatepat_api.dart';
+import '../../../core/api/learning_session.dart';
 import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../teacher_demo_store.dart';
@@ -162,7 +164,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
                   ),
                   const SizedBox(height: AppTokens.space8),
                   Text(
-                    '${aspectLabel(item.aspect)} • tingkat ${item.level}',
+                    '${item.grade == null ? 'Semua kelas' : 'Kelas ${item.grade}'} • ${aspectLabel(item.aspect)} • tingkat ${item.level}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: AppTokens.space8),
@@ -212,11 +214,13 @@ class MaterialFormPage extends StatefulWidget {
 }
 
 class _MaterialFormPageState extends State<MaterialFormPage> {
+  bool _saving = false;
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _title;
   late final TextEditingController _content;
   late String _aspect;
   late int _level;
+  int? _grade;
 
   DemoMaterial? get _material => widget.materialId == null
       ? null
@@ -230,6 +234,7 @@ class _MaterialFormPageState extends State<MaterialFormPage> {
     _content = TextEditingController(text: item?.content ?? '');
     _aspect = item?.aspect ?? 'huruf';
     _level = item?.level ?? 1;
+    _grade = item == null ? 1 : item.grade;
   }
 
   @override
@@ -253,6 +258,29 @@ class _MaterialFormPageState extends State<MaterialFormPage> {
                 title: 'Materi membaca',
                 subtitle: 'Susun materi yang sesuai dengan aspek dan tingkat belajar.',
               ),
+              DropdownButtonFormField<int>(
+                isExpanded: true,
+                initialValue: _grade ?? 0,
+                decoration: const InputDecoration(labelText: 'Untuk kelas'),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Semua kelas')),
+                  DropdownMenuItem(
+                    value: 1,
+                    child: Text('Kelas 1 · Bunyi dan suku kata'),
+                  ),
+                  DropdownMenuItem(
+                    value: 2,
+                    child: Text('Kelas 2 · Kata dan kalimat'),
+                  ),
+                  DropdownMenuItem(
+                    value: 3,
+                    child: Text('Kelas 3 · Memahami bacaan'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _grade = value == 0 ? null : value),
+              ),
+              const SizedBox(height: AppTokens.space16),
               TextFormField(
                 key: const ValueKey('material-title'),
                 controller: _title,
@@ -300,7 +328,16 @@ class _MaterialFormPageState extends State<MaterialFormPage> {
                 controller: _content,
                 minLines: 5,
                 maxLines: 10,
-                decoration: const InputDecoration(labelText: 'Konten materi'),
+                decoration: InputDecoration(
+                  labelText: 'Konten materi',
+                  hintText: switch (_grade) {
+                    1 => 'Baca perlahan: ba, bi, bu. Gabungkan: bu-ku.',
+                    2 =>
+                      'Baca kalimat: Bima membawa buku. Apa yang dibawa Bima?',
+                    3 => 'Tulis cerita pendek. Ajak anak menceritakan kembali isinya.',
+                    _ => 'Tuliskan bacaan untuk siswa.',
+                  },
+                ),
                 validator: (value) => value == null || value.trim().isEmpty
                     ? 'Konten materi perlu diisi.'
                     : null,
@@ -309,7 +346,7 @@ class _MaterialFormPageState extends State<MaterialFormPage> {
               BacaButton(
                 label: 'Simpan materi',
                 icon: Icons.save_outlined,
-                onPressed: _save,
+                onPressed: _saving ? null : _save,
               ),
             ],
           ),
@@ -318,10 +355,41 @@ class _MaterialFormPageState extends State<MaterialFormPage> {
     ),
   );
 
-  void _save() {
+  /// Persist teacher changes before returning to the refreshed class overview.
+  Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
+    if (LearningSession.enabled) {
+      setState(() => _saving = true);
+      try {
+        final id = widget.materialId;
+        await LearningSession.api.request(
+          id == null ? 'guru/materi' : 'guru/materi/$id',
+          method: id == null ? 'POST' : 'PUT',
+          body: {
+            if (id == null) 'terbitkan': true,
+            'judul': _title.text.trim(),
+            'aspek': _aspect,
+            'kelas': _grade,
+            'tingkat_kesulitan': _level,
+            'konten': _content.text.trim(),
+          },
+        );
+        await LearningSession.refresh();
+        if (mounted) Navigator.pop(context);
+      } on ApiError catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error.message)));
+        }
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
+      return;
+    }
     TeacherDemoStore.instance.saveMaterial(
       id: widget.materialId,
+      grade: _grade,
       title: _title.text.trim(),
       aspect: _aspect,
       level: _level,

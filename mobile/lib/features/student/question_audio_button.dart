@@ -198,11 +198,13 @@ class QuestionAudioButton extends StatefulWidget {
     required this.text,
     super.key,
     this.engine,
+    this.label = 'Dengarkan soal',
     this.kind = QuestionSpeechKind.instruction,
   });
 
   final String text;
   final QuestionSpeechEngine? engine;
+  final String label;
   final QuestionSpeechKind kind;
 
   @override
@@ -354,7 +356,7 @@ class _QuestionAudioButtonState extends State<QuestionAudioButton> {
           height: 56,
           child: IconButton.filled(
             key: const ValueKey('question-audio-button'),
-            tooltip: active ? 'Hentikan suara soal' : 'Dengarkan soal',
+            tooltip: active ? 'Hentikan suara soal' : widget.label,
             onPressed: _toggle,
             style: IconButton.styleFrom(
               backgroundColor: active ? AppTokens.secondary : AppTokens.primary,
