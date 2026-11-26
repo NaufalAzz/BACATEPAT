@@ -72,7 +72,7 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
       const SizedBox(height: AppTokens.space16),
       StudentAction(
         label: 'Kembali ke beranda',
-        icon: Icons.home_rounded,
+        icon: Icons.home_outlined,
         onPressed: () => Navigator.pushReplacementNamed(context, '/siswa'),
       ),
     ],
@@ -80,126 +80,153 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
 
   Widget _question(BuildContext context) {
     final item = _items[_index];
-    return ListView(
+    final answered = _answers[_index] != null;
+    return SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        StudentPageHeading(
-          title: _diagnostic!.title,
-          subtitle:
-              'Kerjakan pelan-pelan. Soal ${_index + 1} dari ${_items.length}.',
-        ),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: (_index + 1) / _items.length,
-            minHeight: 14,
-            color: AppTokens.primary,
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        StudentPanel(
-          color: StudentColors.sunshine,
-          child: Column(
-            children: [
-              if (item.picture.isNotEmpty) ...[
-                Semantics(
-                  label: 'Gambar petunjuk',
-                  child: Text(
-                    item.picture,
-                    style: const TextStyle(fontSize: 54, height: 1.1),
-                  ),
-                ),
-                const SizedBox(height: AppTokens.space12),
-              ],
-              Text(
-                'Aspek: ${aspectLabel(item.aspect)}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppTokens.space8),
-              Text(
-                item.prompt,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppTokens.space8),
-              QuestionAudioButton(
-                key: ValueKey('diagnostic-audio-$_index'),
-                text: item.prompt,
-                kind: questionSpeechKindForQuestion(
-                  aspect: item.aspect,
-                  questionType: item.type,
-                ),
-              ),
-              const SizedBox(height: AppTokens.space8),
-              const Text('Baca pilihan jawaban, lalu ketuk satu jawaban.'),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        for (var i = 0; i < item.choices.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.space8),
-            child: OutlinedButton(
-              key: ValueKey('diagnostic-answer-$i'),
-              onPressed: () => setState(() => _answers[_index] = i),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(58),
-                backgroundColor: _answers[_index] == i
-                    ? _answers[_index] == item.correctAnswerIndex
-                          ? StudentColors.mint
-                          : StudentColors.peach
-                    : Colors.white,
-                side: BorderSide(
-                  color: _answers[_index] == i
-                      ? _answers[_index] == item.correctAnswerIndex
-                            ? AppTokens.primary
-                            : AppTokens.coralDark
-                      : AppTokens.outline,
-                  width: 2,
-                ),
-              ),
-              child: Text(
-                item.choices[i],
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space12,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _diagnostic!.title,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppTokens.mutedText,
             ),
           ),
-        if (_answers[_index] != null) ...[
           const SizedBox(height: AppTokens.space8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Soal ${_index + 1} dari ${_items.length}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTokens.text,
+                  ),
+                ),
+              ),
+              Text(
+                aspectLabel(item.aspect),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTokens.secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.space10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+            child: LinearProgressIndicator(
+              value: (_index + 1) / _items.length,
+              minHeight: 4,
+              color: AppTokens.secondary,
+              backgroundColor: const Color(0xFFE4EAEA),
+            ),
+          ),
+          const SizedBox(height: AppTokens.space16),
+          QuestionAudioButton(
+            key: ValueKey('diagnostic-audio-$_index'),
+            text: item.prompt,
+            kind: questionSpeechKindForQuestion(
+              aspect: item.aspect,
+              questionType: item.type,
+            ),
+          ),
+          const SizedBox(height: AppTokens.space16),
           StudentPanel(
-            color: _answers[_index] == item.correctAnswerIndex
-                ? StudentColors.mint
-                : StudentColors.peach,
-            child: Text(
+            padding: const EdgeInsets.all(AppTokens.space20),
+            child: Column(
+              children: [
+                Text(
+                  item.prompt,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTokens.mutedText,
+                  ),
+                ),
+                if (item.picture.isNotEmpty) ...[
+                  const SizedBox(height: AppTokens.space8),
+                  Semantics(
+                    label: 'Gambar petunjuk',
+                    child: Text(
+                      item.picture,
+                      style: const TextStyle(fontSize: 44, height: 1.2),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppTokens.space16),
+                Row(
+                  children: [
+                    for (var i = 0; i < item.choices.length; i++) ...[
+                      if (i > 0) const SizedBox(width: AppTokens.space10),
+                      Expanded(
+                        child: StudentChoiceTile(
+                          key: ValueKey('diagnostic-answer-$i'),
+                          text: item.choices[i],
+                          selected: _answers[_index] == i,
+                          correct: item.correctAnswerIndex == i,
+                          onTap: () => setState(() => _answers[_index] = i),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (answered) ...[
+            const SizedBox(height: AppTokens.space12),
+            Text(
               _answers[_index] == item.correctAnswerIndex
                   ? item.correctFeedback
                   : item.hint,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppTokens.mutedText,
+                height: 1.45,
+              ),
+            ),
+          ],
+          const SizedBox(height: AppTokens.space16),
+          FilledButton(
+            key: const ValueKey('diagnostic-next'),
+            onPressed: answered ? _next : () => _showSelectHint(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: answered
+                  ? AppTokens.primary
+                  : const Color(0xFF9AC7BC),
+              minimumSize: const Size.fromHeight(AppTokens.studentButtonHeight),
+            ),
+            child: Text(
+              _index == _items.length - 1 ? 'Selesai' : 'Soal berikutnya',
             ),
           ),
+          if (_index > 0)
+            Center(
+              child: TextButton(
+                key: const ValueKey('diagnostic-back'),
+                onPressed: _previous,
+                child: const Text(
+                  'Sebelumnya',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTokens.secondary,
+                  ),
+                ),
+              ),
+            ),
         ],
-        const SizedBox(height: AppTokens.space8),
-        if (_index > 0)
-          OutlinedButton.icon(
-            key: const ValueKey('diagnostic-back'),
-            onPressed: _previous,
-            icon: const Icon(Icons.arrow_back_rounded),
-            label: const Text('Soal sebelumnya'),
-          ),
-        StudentAction(
-          key: const ValueKey('diagnostic-next'),
-          label: _index == _items.length - 1 ? 'Selesai' : 'Lanjut',
-          icon: _index == _items.length - 1
-              ? Icons.check_rounded
-              : Icons.arrow_forward_rounded,
-          onPressed: _answers[_index] == null
-              ? () => _showSelectHint(context)
-              : _next,
-        ),
-      ],
+      ),
     );
   }
 
@@ -279,61 +306,150 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
     final scores = _attempt!.aspectScores;
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space24,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
       children: [
-        const StudentPageHeading(
-          title: 'Tes selesai! 🎉',
-          subtitle: 'Terima kasih sudah mencoba. Ini hasil diagnostikmu.',
+        Center(
+          child: Container(
+            width: 88,
+            height: 88,
+            decoration: const BoxDecoration(
+              color: AppTokens.mint,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 40,
+              color: AppTokens.primary,
+            ),
+          ),
         ),
+        const SizedBox(height: AppTokens.space16),
+        const Center(
+          child: _SummaryBadge(label: 'Menunggu penilaian'),
+        ),
+        const SizedBox(height: AppTokens.space12),
+        const Text(
+          'Jawabanmu sudah terkirim!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 24,
+            height: 1.25,
+            fontWeight: FontWeight.w600,
+            color: AppTokens.text,
+          ),
+        ),
+        const SizedBox(height: AppTokens.space8),
+        const Text(
+          'Bu Andini dapat melihat rincian hasilmu.\nKerjakan latihan berikutnya, ya.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: AppTokens.mutedText,
+          ),
+        ),
+        const SizedBox(height: AppTokens.space24),
         StudentPanel(
-          color: StudentColors.mint,
+          padding: EdgeInsets.zero,
           child: Column(
             children: [
-              const Icon(
-                Icons.emoji_events_rounded,
-                size: 56,
-                color: Color(0xFFCC9B27),
+              _SummaryRow(
+                icon: Icons.check_box_outlined,
+                tint: AppTokens.primary,
+                title: '${_attempt!.answers.length} soal objektif',
+                subtitle: 'Sudah dinilai otomatis',
+                badge: 'Selesai',
+                badgeColor: AppTokens.mint,
+                badgeTextColor: AppTokens.primary,
               ),
-              Text(
-                'Kamu hebat sudah mencoba!',
-                style: Theme.of(context).textTheme.titleLarge,
+              const Divider(height: 1, color: AppTokens.outline),
+              const _SummaryRow(
+                icon: Icons.mic_none_rounded,
+                tint: AppTokens.warning,
+                title: 'Nilai per aspek',
+                subtitle: 'Tersimpan di kemajuanku',
+                badge: 'Lihat',
+                badgeColor: AppTokens.sunshine,
+                badgeTextColor: AppTokens.warning,
               ),
-              const SizedBox(height: AppTokens.space12),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space16),
+        Container(
+          padding: const EdgeInsets.all(AppTokens.space14),
+          decoration: BoxDecoration(
+            color: AppTokens.sunshine,
+            borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+            border: Border.all(color: const Color(0xFFEBD78D)),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 18,
+                color: AppTokens.warning,
+              ),
+              SizedBox(width: AppTokens.space10),
+              Expanded(
+                child: Text(
+                  'Tes ini sudah selesai dan tidak dapat dikerjakan kembali.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: AppTokens.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space20),
+        StudentPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const StudentSectionLabel('Hasil per aspek'),
+              const SizedBox(height: AppTokens.space8),
               for (final aspect in const [
                 'huruf',
                 'suku_kata',
                 'kata',
                 'kalimat',
-              ]) ...[
+              ])
                 StudentProgressBar(
                   label: aspectLabel(aspect),
                   value: scores[aspect] ?? 0,
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppTokens.space8),
-                    child: Text(
-                      _abilityLabel(scores[aspect] ?? 0),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
-        const SizedBox(height: AppTokens.space16),
+        const SizedBox(height: AppTokens.space20),
         StudentAction(
           key: const ValueKey('diagnostic-finish'),
-          label: 'Lihat latihan untukku',
-          icon: Icons.auto_stories_rounded,
+          label: 'Kembali ke beranda',
+          icon: Icons.home_outlined,
           onPressed: () =>
-              Navigator.pushReplacementNamed(context, '/siswa/latihan'),
+              Navigator.pushReplacementNamed(context, '/siswa'),
         ),
-        TextButton(
-          onPressed: () => Navigator.pushReplacementNamed(context, '/siswa'),
-          child: const Text('Kembali ke beranda'),
+        Center(
+          child: TextButton(
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, '/siswa/latihan'),
+            child: const Text(
+              'Lihat latihan untukku',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTokens.secondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -342,10 +458,106 @@ class _StudentDiagnosticPageState extends State<StudentDiagnosticPage> {
   void _showSelectHint(BuildContext context) => ScaffoldMessenger.of(
     context,
   ).showSnackBar(const SnackBar(content: Text('Pilih satu jawaban dulu ya.')));
+}
 
-  String _abilityLabel(int score) {
-    if (score < 60) return 'Belum dikuasai';
-    if (score < 80) return 'Sedang berlatih';
-    return 'Dikuasai';
-  }
+class _SummaryBadge extends StatelessWidget {
+  const _SummaryBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+    decoration: BoxDecoration(
+      color: AppTokens.sunshine,
+      borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+      border: Border.all(color: const Color(0xFFEBD78D)),
+    ),
+    child: Text(
+      label.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 9,
+        letterSpacing: 0.8,
+        fontWeight: FontWeight.w900,
+        color: AppTokens.warning,
+      ),
+    ),
+  );
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.icon,
+    required this.tint,
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.badgeColor,
+    required this.badgeTextColor,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final String title;
+  final String subtitle;
+  final String badge;
+  final Color badgeColor;
+  final Color badgeTextColor;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(AppTokens.space14),
+    child: Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: badgeColor,
+            borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+          ),
+          child: Icon(icon, size: 19, color: tint),
+        ),
+        const SizedBox(width: AppTokens.space12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.text,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: AppTokens.mutedText,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: badgeColor,
+            borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+          ),
+          child: Text(
+            badge.toUpperCase(),
+            style: TextStyle(
+              fontSize: 9,
+              letterSpacing: 0.6,
+              fontWeight: FontWeight.w900,
+              color: badgeTextColor,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

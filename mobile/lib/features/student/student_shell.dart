@@ -28,110 +28,142 @@ class StudentShell extends StatelessWidget {
         final textScaler = StudentDemoStore.instance.largerText
             ? _StudentPreferenceTextScaler(systemTextScaler, 1.12)
             : systemTextScaler;
+        final background = switch (screen.id) {
+          'S3' || 'S8' => const Color(0xFFF2F8FA),
+          'S7' => const Color(0xFFFFF5F1),
+          _ => const Color(0xFFFFF9EF),
+        };
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: textScaler),
-          child: Scaffold(
-            appBar: AppBar(
-              leading: screen.placement == NavigationPlacement.detail
-                  ? IconButton(
-                      tooltip: 'Kembali',
-                      onPressed: () => Navigator.maybePop(context),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    )
-                  : null,
-              title: screen.placement == NavigationPlacement.primary
-                  ? Row(
-                      children: [
-                        const BacaTepatMark(size: 30),
-                        const SizedBox(width: AppTokens.space8),
-                        Flexible(
-                          child: Text(
-                            'BacaTepat',
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              scaffoldBackgroundColor: background,
+              appBarTheme: Theme.of(context).appBarTheme.copyWith(
+                backgroundColor: background,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+              ),
+            ),
+            child: Scaffold(
+              appBar: AppBar(
+                centerTitle: screen.placement == NavigationPlacement.detail,
+                leading: screen.placement == NavigationPlacement.detail
+                    ? IconButton(
+                        tooltip: 'Kembali',
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        style: IconButton.styleFrom(
+                          shape: const CircleBorder(),
+                          side: const BorderSide(color: AppTokens.outline),
+                          backgroundColor: AppTokens.surface,
                         ),
-                      ],
-                    )
-                  : Text(_studentToolbarTitle(screen.id)),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: CircleAvatar(
-                    radius: 17,
-                    backgroundColor: AppTokens.sunshine,
-                    child: Text(
-                      StudentDemoStore.instance.studentName.isEmpty
-                          ? '?'
-                          : StudentDemoStore
-                                .instance
-                                .studentName
-                                .characters
-                                .first
-                                .toUpperCase(),
-                      style: const TextStyle(
-                        color: AppTokens.text,
-                        fontWeight: FontWeight.w800,
+                      )
+                    : null,
+                title: screen.placement == NavigationPlacement.primary
+                    ? Row(
+                        children: [
+                          const BacaTepatMark(size: 30),
+                          const SizedBox(width: AppTokens.space8),
+                          Text(
+                            'BacaTepat',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          if (_studentSectionTitle(screen.id).isNotEmpty) ...[
+                            const SizedBox(width: AppTokens.space12),
+                            Flexible(
+                              child: Text(
+                                _studentSectionTitle(screen.id),
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : Text(
+                        _studentToolbarTitle(screen.id),
+                        textAlign: TextAlign.center,
+                      ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: CircleAvatar(
+                      radius: 17,
+                      backgroundColor: AppTokens.sunshine,
+                      child: Text(
+                        StudentDemoStore.instance.studentName.isEmpty
+                            ? '?'
+                            : StudentDemoStore
+                                  .instance
+                                  .studentName
+                                  .characters
+                                  .first
+                                  .toUpperCase(),
+                        style: const TextStyle(
+                          color: AppTokens.text,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            body: StudentFeatureBody(screen: screen, arguments: arguments),
-            bottomNavigationBar: Material(
-              key: const ValueKey('student-navigation'),
-              color: Colors.white,
-              elevation: 8,
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 62,
-                  child: Row(
-                    children: [
-                      for (var index = 0; index < mainScreens.length; index++)
-                        Expanded(
-                          child: InkWell(
-                            key: ValueKey(
-                              'student-tab-${mainScreens[index].id}',
-                            ),
-                            onTap: () => Navigator.pushReplacementNamed(
-                              context,
-                              mainScreens[index].path,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _studentIcon(
-                                    mainScreens[index].id,
-                                    selected: index == selectedIndex,
-                                  ),
-                                  size: 21,
-                                  color: index == selectedIndex
-                                      ? AppTokens.primary
-                                      : const Color(0xFF89918E),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _studentTabLabel(mainScreens[index].id),
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    fontSize: 9.5,
-                                    height: 1.2,
-                                    fontWeight: index == selectedIndex
-                                        ? FontWeight.w800
-                                        : FontWeight.w500,
+                ],
+              ),
+              body: StudentFeatureBody(screen: screen, arguments: arguments),
+              bottomNavigationBar: Material(
+                key: const ValueKey('student-navigation'),
+                color: Colors.white,
+                elevation: 8,
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    height: 62,
+                    child: Row(
+                      children: [
+                        for (var index = 0; index < mainScreens.length; index++)
+                          Expanded(
+                            child: InkWell(
+                              key: ValueKey(
+                                'student-tab-${mainScreens[index].id}',
+                              ),
+                              onTap: () => Navigator.pushReplacementNamed(
+                                context,
+                                mainScreens[index].path,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _studentIcon(
+                                      mainScreens[index].id,
+                                      selected: index == selectedIndex,
+                                    ),
+                                    size: 21,
                                     color: index == selectedIndex
                                         ? AppTokens.primary
-                                        : const Color(0xFF78827F),
+                                        : const Color(0xFF89918E),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _studentTabLabel(mainScreens[index].id),
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      height: 1.2,
+                                      fontWeight: index == selectedIndex
+                                          ? FontWeight.w800
+                                          : FontWeight.w500,
+                                      color: index == selectedIndex
+                                          ? AppTokens.primary
+                                          : const Color(0xFF78827F),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -189,10 +221,18 @@ String _studentTabLabel(String id) => switch (id) {
   _ => 'Lainnya',
 };
 
+String _studentSectionTitle(String id) => switch (id) {
+  'S4' => 'Latihanku',
+  'S8' => 'Hasil dari Guru',
+  'S9' => 'Kemajuanku',
+  'S10' => 'Profilku',
+  _ => '',
+};
+
 String _studentToolbarTitle(String id) => switch (id) {
-  'S3' => 'Tes diagnostik',
+  'S3' => 'Tes membaca',
   'S5' => 'Materi',
-  'S6' => 'Latihan',
-  'S7' => 'Rekaman',
+  'S6' => 'Latihan kata',
+  'S7' => 'Baca dengan suara',
   _ => 'BacaTepat',
 };

@@ -112,7 +112,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    expect(find.text('Tes selesai! 🎉'), findsOneWidget);
+    expect(find.text('Jawabanmu sudah terkirim!'), findsOneWidget);
     expect(student.diagnosticHistory, hasLength(beforeHistory + 1));
     final attempt = student.diagnosticHistory.first;
     expect(attempt.diagnosticId, diagnostic.id);

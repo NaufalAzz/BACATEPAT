@@ -38,199 +38,375 @@ class _StudentsPageState extends State<StudentsPage> {
           (_showInactive || student.active);
     }).toList();
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.space16),
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
       children: [
         TeacherPageHeading(
-          title: 'Data Siswa',
+          section: 'Data Siswa',
+          title: 'Semua siswa',
           subtitle:
-              '${store.activeStudents.length} siswa aktif di ${store.accessibleClasses.length} kelas.',
+              '${store.activeStudents.length} siswa dari ${store.accessibleClasses.length} kelas',
+          action: FilledButton.icon(
+            key: const ValueKey('add-student'),
+            onPressed: () => Navigator.pushNamed(context, '/guru/siswa/form'),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Tambah siswa'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              textStyle: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ),
-        LayoutBuilder(
-          builder: (context, constraints) => constraints.maxWidth < 540
-              ? Column(
-                  children: [
-                    BacaButton(
-                      key: const ValueKey('add-student'),
-                      label: 'Tambah siswa',
-                      icon: Icons.person_add_alt_1_rounded,
-                      onPressed: () =>
-                          Navigator.pushNamed(context, '/guru/siswa/form'),
-                    ),
-                    const SizedBox(height: AppTokens.space12),
-                    _studentFilters(context),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: _studentFilters(context)),
-                    const SizedBox(width: AppTokens.space12),
-                    SizedBox(
-                      width: 220,
-                      child: BacaButton(
-                        key: const ValueKey('add-student'),
-                        label: 'Tambah siswa',
-                        icon: Icons.person_add_alt_1_rounded,
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/guru/siswa/form'),
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        Wrap(
-          spacing: AppTokens.space8,
-          runSpacing: AppTokens.space8,
+        Row(
           children: [
-            FilterChip(
-              label: const Text('Aktif'),
-              selected: !_showInactive,
-              onSelected: (_) => setState(() => _showInactive = false),
-            ),
-            FilterChip(
-              label: const Text('Semua status'),
-              selected: _showInactive,
-              onSelected: (_) => setState(() => _showInactive = true),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTokens.space16),
-        if (filtered.isEmpty)
-          const TeacherPanel(
-            child: EmptyState(
-              message: 'Belum ada siswa yang cocok dengan pencarian ini.',
-            ),
-          )
-        else
-          for (final student in filtered)
-            Card(
-              child: ListTile(
-                key: ValueKey('student-row-${student.id}'),
-                minVerticalPadding: AppTokens.space12,
-                leading: CircleAvatar(
-                  backgroundColor: AppTokens.primary.withValues(alpha: 0.1),
-                  child: Text(student.name.substring(0, 1).toUpperCase()),
-                ),
-                title: Text(student.name),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: AppTokens.space4),
-                  child: Wrap(
-                    spacing: AppTokens.space8,
-                    runSpacing: AppTokens.space4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        '${store.className(student.classId)} • ${student.username}',
-                      ),
-                      StatusBadge(
-                        label: student.parentConsent
-                            ? 'Persetujuan wali'
-                            : 'Belum disetujui',
-                        good: student.parentConsent,
-                      ),
-                      StatusBadge(
-                        label: student.active
-                            ? masterySummaryFor(
-                                StudentDemoStore.instance
-                                    .latestDiagnosticForTeacher(
-                                      AppSession.teacherId ?? -1,
-                                      student.id,
-                                    )
-                                    ?.aspectScores,
-                              )
-                            : 'Nonaktif',
-                        good:
-                            student.active &&
-                            StudentDemoStore.instance
-                                    .latestDiagnosticForTeacher(
-                                      AppSession.teacherId ?? -1,
-                                      student.id,
-                                    ) !=
-                                null,
-                      ),
-                    ],
+            Expanded(
+              child: SizedBox(
+                height: 40,
+                child: TextField(
+                  key: const ValueKey('student-search'),
+                  controller: _searchController,
+                  style: const TextStyle(fontSize: 12.5),
+                  decoration: const InputDecoration(
+                    hintText: 'Cari nama atau username',
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    contentPadding: EdgeInsets.zero,
                   ),
-                ),
-                trailing: PopupMenuButton<String>(
-                  tooltip: 'Aksi siswa',
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      Navigator.pushNamed(
-                        context,
-                        '/guru/siswa/form',
-                        arguments: student.id,
-                      );
-                    } else if (value == 'status') {
-                      TeacherDemoStore.instance.toggleStudentActive(student.id);
-                      setState(() {});
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Ubah data'),
-                    ),
-                    PopupMenuItem(
-                      value: 'status',
-                      child: Text(student.active ? 'Nonaktifkan' : 'Aktifkan'),
-                    ),
-                  ],
-                ),
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  '/guru/siswa/detail',
-                  arguments: student.id,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
             ),
+            const SizedBox(width: AppTokens.space8),
+            SizedBox(
+              height: 40,
+              width: 136,
+              child: DropdownButtonFormField<int?>(
+                isExpanded: true,
+                initialValue: _classFilter,
+                style: const TextStyle(fontSize: 12.5, color: AppTokens.text),
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                ),
+                items: [
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('Semua kelas'),
+                  ),
+                  for (final item in store.accessibleClasses)
+                    DropdownMenuItem<int?>(
+                      value: item.id,
+                      child: Text(item.name),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _classFilter = value),
+              ),
+            ),
+            const SizedBox(width: AppTokens.space8),
+            _StatusChip(
+              label: _showInactive ? 'Semua' : 'Aktif',
+              selected: !_showInactive,
+              onTap: () => setState(() => _showInactive = !_showInactive),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTokens.space12),
+        if (filtered.isEmpty)
+          const TeacherPanel(
+            padding: EdgeInsets.all(AppTokens.space32),
+            child: EmptyState(
+              message: 'Belum ada siswa yang cocok dengan pencarian ini.',
+              icon: Icons.search_off_rounded,
+            ),
+          )
+        else
+          TeacherPanel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                const _TableHeader(),
+                for (var i = 0; i < filtered.length; i++) ...[
+                  if (i > 0)
+                    const Divider(height: 1, color: AppTokens.outline),
+                  _StudentRow(
+                    key: ValueKey('student-row-${filtered[i].id}'),
+                    student: filtered[i],
+                    store: store,
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/guru/siswa/detail',
+                      arguments: filtered[i].id,
+                    ),
+                    onEdit: () => Navigator.pushNamed(
+                      context,
+                      '/guru/siswa/form',
+                      arguments: filtered[i].id,
+                    ),
+                    onStatusToggle: () {
+                      TeacherDemoStore.instance.toggleStudentActive(
+                        filtered[i].id,
+                      );
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
+}
 
-  Widget _studentFilters(BuildContext context) {
-    final store = TeacherDemoStore.instance;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final search = TextField(
-          key: const ValueKey('student-search'),
-          controller: _searchController,
-          decoration: const InputDecoration(
-            labelText: 'Cari nama atau username',
-            prefixIcon: Icon(Icons.search_rounded),
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+    child: Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppTokens.surface,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+        border: Border.all(color: AppTokens.outline),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: AppTokens.text,
+        ),
+      ),
+    ),
+  );
+}
+
+class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+    decoration: const BoxDecoration(
+      color: Color(0xFFF7F9F8),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppTokens.radiusXLarge),
+      ),
+    ),
+    child: Row(
+      children: [
+        const Expanded(flex: 4, child: _HeaderLabel('Siswa')),
+        const Expanded(flex: 2, child: _HeaderLabel('Kelas')),
+        Expanded(
+          flex: 4,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _HeaderLabel('Status'),
           ),
-          onChanged: (_) => setState(() {}),
-        );
-        final classFilter = DropdownButtonFormField<int?>(
-          isExpanded: true,
-          initialValue: _classFilter,
-          decoration: const InputDecoration(labelText: 'Kelas'),
-          items: [
-            const DropdownMenuItem<int?>(value: null, child: Text('Semua')),
-            for (final item in store.accessibleClasses)
-              DropdownMenuItem<int?>(value: item.id, child: Text(item.name)),
-          ],
-          onChanged: (value) => setState(() => _classFilter = value),
-        );
-        if (constraints.maxWidth < 420) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              search,
-              const SizedBox(height: AppTokens.space12),
-              classFilter,
-            ],
-          );
-        }
-        return Row(
+        ),
+      ],
+    ),
+  );
+}
+
+class _HeaderLabel extends StatelessWidget {
+  const _HeaderLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label.toUpperCase(),
+    style: const TextStyle(
+      fontSize: 9.5,
+      letterSpacing: 0.7,
+      fontWeight: FontWeight.w800,
+      color: AppTokens.mutedText,
+    ),
+  );
+}
+
+class _StudentRow extends StatelessWidget {
+  const _StudentRow({
+    super.key,
+    required this.student,
+    required this.store,
+    required this.onTap,
+    required this.onEdit,
+    required this.onStatusToggle,
+  });
+
+  final DemoStudent student;
+  final TeacherDemoStore store;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onStatusToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final needsSupport = StudentDemoStore.instance.needsSupportForStudent(
+      student.id,
+    );
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Row(
           children: [
-            Expanded(child: search),
-            const SizedBox(width: AppTokens.space12),
-            SizedBox(width: 150, child: classFilter),
+            Expanded(
+              flex: 4,
+              child: Row(
+                children: [
+                  TeacherAvatar(
+                    name: student.name,
+                    radius: 16,
+                    backgroundColor: const Color(0xFFDCEBE4),
+                  ),
+                  const SizedBox(width: AppTokens.space10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          student.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppTokens.text,
+                          ),
+                        ),
+                        Text(
+                          student.username,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: AppTokens.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                store.className(student.classId),
+                style: const TextStyle(fontSize: 11.5, color: AppTokens.text),
+              ),
+            ),
+            Expanded(
+              flex: 4,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 2,
+                children: [
+                  if (!student.active)
+                    const _StatusPill(label: 'Nonaktif', muted: true)
+                  else if (needsSupport)
+                    const Text(
+                      'Perlu dampingan',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTokens.coralDark,
+                      ),
+                    )
+                  else
+                    const _StatusPill(label: 'Aktif'),
+                  PopupMenuButton<String>(
+                    tooltip: 'Aksi siswa',
+                    padding: EdgeInsets.zero,
+                    iconSize: 16,
+                    onSelected: (value) => value == 'edit'
+                        ? onEdit()
+                        : onStatusToggle(),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Ubah data'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'status',
+                        child: Row(
+                          children: [
+                            Icon(
+                              student.active
+                                  ? Icons.person_off_outlined
+                                  : Icons.person_add_rounded,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              student.active ? 'Nonaktifkan' : 'Aktifkan',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, this.muted = false});
+
+  final String label;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: muted ? const Color(0xFFF0F2F1) : AppTokens.mint,
+      borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 9.5,
+        fontWeight: FontWeight.w800,
+        color: muted ? AppTokens.mutedText : AppTokens.primary,
+      ),
+    ),
+  );
 }
 
 class StudentFormPage extends StatefulWidget {
@@ -299,90 +475,113 @@ class _StudentFormPageState extends State<StudentFormPage> {
             child: ListView(
               padding: const EdgeInsets.all(AppTokens.space16),
               children: [
-                const TeacherPageHeading(
-                  title: 'Data siswa',
+                TeacherPageHeading(
+                  title: isEditing ? 'Ubah Data Siswa' : 'Tambah Siswa Baru',
                   subtitle: 'Isi informasi dasar dan persetujuan wali.',
                 ),
-                TextFormField(
-                  key: const ValueKey('form-student-name'),
-                  controller: _name,
-                  decoration: const InputDecoration(labelText: 'Nama lengkap'),
-                  validator: (value) => value == null || value.trim().length < 2
-                      ? 'Nama minimal 2 karakter.'
-                      : null,
-                ),
-                const SizedBox(height: AppTokens.space16),
-                TextFormField(
-                  key: const ValueKey('form-student-username'),
-                  controller: _username,
-                  decoration: const InputDecoration(labelText: 'Username'),
-                  validator: (value) =>
-                      value == null ||
-                          !RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(value.trim())
-                      ? 'Gunakan huruf, angka, titik, atau garis bawah.'
-                      : null,
-                ),
-                if (!isEditing) ...[
-                  const SizedBox(height: AppTokens.space16),
-                  TextFormField(
-                    key: const ValueKey('form-student-password'),
-                    controller: _password,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Kata sandi awal (simulasi)',
-                    ),
-                    validator: _validatePassword,
-                  ),
-                ],
-                const SizedBox(height: AppTokens.space16),
-                DropdownButtonFormField<int>(
-                  isExpanded: true,
-                  initialValue: _classId,
-                  decoration: const InputDecoration(labelText: 'Kelas'),
-                  items: [
-                    for (final item in store.accessibleClasses)
-                      DropdownMenuItem(
-                        value: item.id,
-                        child: Text('${item.name} • kelas ${item.grade}'),
-                      ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _classId = value ?? _classId),
-                ),
-                const SizedBox(height: AppTokens.space16),
-                TextFormField(
-                  controller: _guardian,
-                  decoration: const InputDecoration(labelText: 'Nama wali'),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Nama wali perlu diisi.'
-                      : null,
-                ),
-                const SizedBox(height: AppTokens.space16),
-                Card(
+                TeacherPanel(
+                  padding: const EdgeInsets.all(AppTokens.space20),
                   child: Column(
                     children: [
-                      SwitchListTile.adaptive(
-                        key: const ValueKey('parent-consent'),
-                        title: const Text('Persetujuan wali untuk rekaman'),
-                        subtitle: const Text(
-                          'Rekaman tidak dapat dibuat tanpa persetujuan ini.',
+                      TextFormField(
+                        key: const ValueKey('form-student-name'),
+                        controller: _name,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama lengkap',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
                         ),
-                        value: _parentConsent,
-                        onChanged: (value) => setState(() {
-                          _parentConsent = value;
-                          if (!value) _aiConsent = false;
-                        }),
-                      ),
-                      SwitchListTile.adaptive(
-                        key: const ValueKey('ai-consent'),
-                        title: const Text('Persetujuan analisis AI'),
-                        subtitle: const Text(
-                          'Hanya indikasi untuk rekaman kata atau kalimat.',
-                        ),
-                        value: _aiConsent,
-                        onChanged: _parentConsent
-                            ? (value) => setState(() => _aiConsent = value)
+                        validator: (value) => value == null || value.trim().length < 2
+                            ? 'Nama minimal 2 karakter.'
                             : null,
+                      ),
+                      const SizedBox(height: AppTokens.space16),
+                      TextFormField(
+                        key: const ValueKey('form-student-username'),
+                        controller: _username,
+                        decoration: const InputDecoration(
+                          labelText: 'Username',
+                          prefixIcon: Icon(Icons.alternate_email_rounded),
+                        ),
+                        validator: (value) =>
+                            value == null ||
+                                    !RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(value.trim())
+                                ? 'Gunakan huruf, angka, titik, atau garis bawah.'
+                                : null,
+                      ),
+                      if (!isEditing) ...[
+                        const SizedBox(height: AppTokens.space16),
+                        TextFormField(
+                          key: const ValueKey('form-student-password'),
+                          controller: _password,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: 'Kata sandi awal (simulasi)',
+                            prefixIcon: Icon(Icons.lock_outline_rounded),
+                          ),
+                          validator: _validatePassword,
+                        ),
+                      ],
+                      const SizedBox(height: AppTokens.space16),
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: _classId,
+                        decoration: const InputDecoration(
+                          labelText: 'Kelas',
+                          prefixIcon: Icon(Icons.class_outlined),
+                        ),
+                        items: [
+                          for (final item in store.accessibleClasses)
+                            DropdownMenuItem(
+                              value: item.id,
+                              child: Text('${item.name} • kelas ${item.grade}'),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _classId = value ?? _classId),
+                      ),
+                      const SizedBox(height: AppTokens.space16),
+                      TextFormField(
+                        controller: _guardian,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama wali',
+                          prefixIcon: Icon(Icons.family_restroom_rounded),
+                        ),
+                        validator: (value) => value == null || value.trim().isEmpty
+                            ? 'Nama wali perlu diisi.'
+                            : null,
+                      ),
+                      const SizedBox(height: AppTokens.space20),
+                      Card(
+                        color: AppTokens.sky,
+                        child: Column(
+                          children: [
+                            SwitchListTile.adaptive(
+                              key: const ValueKey('parent-consent'),
+                              title: const Text('Persetujuan wali untuk rekaman'),
+                              subtitle: const Text(
+                                'Rekaman tidak dapat dibuat tanpa persetujuan ini.',
+                              ),
+                              value: _parentConsent,
+                              activeThumbColor: AppTokens.primary,
+                              onChanged: (value) => setState(() {
+                                _parentConsent = value;
+                                if (!value) _aiConsent = false;
+                              }),
+                            ),
+                            SwitchListTile.adaptive(
+                              key: const ValueKey('ai-consent'),
+                              title: const Text('Persetujuan analisis AI'),
+                              subtitle: const Text(
+                                'Hanya indikasi untuk rekaman kata atau kalimat.',
+                              ),
+                              value: _aiConsent,
+                              activeThumbColor: AppTokens.primary,
+                              onChanged: _parentConsent
+                                  ? (value) => setState(() => _aiConsent = value)
+                                  : null,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -395,7 +594,7 @@ class _StudentFormPageState extends State<StudentFormPage> {
                   onPressed: _save,
                 ),
                 if (isEditing) ...[
-                  const SizedBox(height: AppTokens.space8),
+                  const SizedBox(height: AppTokens.space12),
                   TextButton.icon(
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -463,8 +662,10 @@ class StudentDetailPage extends StatelessWidget {
         ? null
         : store.studentById(studentId!);
     if (student == null) {
-      return const Scaffold(
-        body: EmptyState(message: 'Data siswa tidak ditemukan.'),
+      return Scaffold(
+        body: Center(
+          child: EmptyState(message: 'Data siswa tidak ditemukan.'),
+        ),
       );
     }
     final authorizedTeacherId = teacherId!;
@@ -488,166 +689,33 @@ class StudentDetailPage extends StatelessWidget {
           children: [
             TeacherPageHeading(
               title: student.name,
-              subtitle:
-                  'Kelas ${store.className(student.classId)} • @${student.username}',
+              subtitle: 'Kelas ${store.className(student.classId)} • @${student.username}',
             ),
-            TeacherPanel(
-              title: 'Informasi siswa',
-              child: Wrap(
-                spacing: AppTokens.space12,
-                runSpacing: AppTokens.space12,
-                children: [
-                  StatusBadge(
-                    label: student.active ? 'Aktif' : 'Nonaktif',
-                    good: student.active,
-                  ),
-                  StatusBadge(
-                    label: student.parentConsent
-                        ? 'Persetujuan rekaman: ya'
-                        : 'Persetujuan rekaman: belum',
-                    good: student.parentConsent,
-                  ),
-                  StatusBadge(
-                    label: student.aiConsent
-                        ? 'Persetujuan AI: ya'
-                        : 'Persetujuan AI: tidak',
-                    good: student.aiConsent,
-                  ),
-                ],
-              ),
+            _StudentInfoCard(student: student),
+            const SizedBox(height: AppTokens.space16),
+            _MasteryCard(
+              latestMastery: latestMastery,
+              store: store,
             ),
             const SizedBox(height: AppTokens.space16),
-            TeacherPanel(
-              title: 'Penguasaan membaca',
-              child: latestMastery.isEmpty
-                  ? const EmptyState(
-                      message: 'Belum ada catatan penguasaan dari diagnostik lengkap.',
-                    )
-                  : Column(
-                      children: [
-                        for (final aspect in const [
-                          'huruf',
-                          'suku_kata',
-                          'kata',
-                          'kalimat',
-                        ])
-                          if (latestMastery[aspect] case final record?)
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(aspectLabel(record.aspect)),
-                              subtitle: Text(
-                                '${record.score}% · Tingkat ${record.level} · ${record.source == 'diagnostik' ? 'Diagnostik' : 'Latihan'}',
-                              ),
-                              trailing: Text(
-                                _masteryStatusLabel(record.status),
-                              ),
-                            ),
-                      ],
-                    ),
+            _DiagnosticResultsCard(
+              teacherId: teacherId,
+              student: student,
+              store: store,
+              learningStore: learningStore,
             ),
             const SizedBox(height: AppTokens.space16),
-            TeacherPanel(
-              title: 'Hasil diagnostik',
-              child:
-                  StudentDemoStore.instance.latestDiagnosticForTeacher(
-                        authorizedTeacherId,
-                        student.id,
-                      ) ==
-                      null
-                  ? const EmptyState(
-                      message: 'Belum ada hasil diagnostik untuk siswa ini.',
-                    )
-                  : Column(
-                      children: [
-                        for (final entry
-                            in StudentDemoStore.instance
-                                .latestDiagnosticForTeacher(
-                                  teacherId,
-                                  student.id,
-                                )!
-                                .aspectScores
-                                .entries)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(aspectLabel(entry.key)),
-                            subtitle: LinearProgressIndicator(
-                              value: entry.value / 100,
-                              minHeight: 7,
-                            ),
-                            trailing: Text(
-                              '${entry.value}%\n${masteryLabel(entry.value)}',
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                      ],
-                    ),
+            _RecommendationCard(
+              student: student,
+              recommendation: recommendation,
+              materialGaps: materialGaps,
+              latestMastery: latestMastery,
+              store: store,
+              learningStore: learningStore,
+              onChangeRecommendation: () => _chooseRecommendation(context, student.id),
             ),
             const SizedBox(height: AppTokens.space16),
-            TeacherPanel(
-              title: 'Rekomendasi dan pendampingan',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Ringkasan: ${masterySummaryFor({for (final entry in latestMastery.entries) entry.key: entry.value.score})}',
-                  ),
-                  const SizedBox(height: AppTokens.space8),
-                  Text(
-                    recommendation == null
-                        ? 'Rekomendasi aktif: Belum ada'
-                        : 'Rekomendasi aktif: ${store.materialById(recommendation.materialId)?.title ?? 'Materi tidak tersedia'}',
-                  ),
-                  if (recommendation != null)
-                    Text(
-                      '${recommendation.source == 'guru' ? 'Dari Guru' : 'Dari sistem'} · ${recommendation.reason}',
-                    ),
-                  for (final gap in materialGaps)
-                    Text(
-                      'Materi perlu disiapkan: ${aspectLabel(gap.aspect)} tingkat ${gap.level}. ${gap.reason}',
-                    ),
-                  const SizedBox(height: AppTokens.space12),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Perlu pendampingan'),
-                    value: learningStore.needsSupportForStudent(student.id),
-                    onChanged: (value) =>
-                        learningStore.setTeacherSupportFlag(student.id, value),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _chooseRecommendation(context, student.id),
-                    icon: const Icon(Icons.swap_horiz_rounded),
-                    label: const Text('Ganti rekomendasi latihan'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppTokens.space16),
-            TeacherPanel(
-              title: 'Rekaman dan evaluasi',
-              child: Column(
-                children: [
-                  for (final recording in store.recordings.where(
-                    (item) => item.studentId == student.id,
-                  ))
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.mic_none_rounded),
-                      title: Text(
-                        '${aspectLabel(recording.aspect)} • ${recording.targetText}',
-                      ),
-                      subtitle: Text(
-                        recording.status == 'dievaluasi'
-                            ? 'Ketepatan ${recording.accuracyScore}% • Kelancaran ${recording.fluencyScore}%'
-                            : 'Menunggu evaluasi',
-                      ),
-                    ),
-                  if (!store.recordings.any(
-                    (item) => item.studentId == student.id,
-                  ))
-                    const EmptyState(message: 'Belum ada aktivitas rekaman.'),
-                ],
-              ),
-            ),
+            _RecordingsCard(student: student, store: store),
           ],
         );
       },
@@ -662,81 +730,655 @@ class StudentDetailPage extends StatelessWidget {
     final pageContext = context;
     await showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(title: Text('Pilih materi rekomendasi')),
-            for (final item in store.materials.where(
-              (item) =>
-                  item.status == 'aktif' &&
-                  store.practiceQuestionsForMaterial(item.id).isNotEmpty,
-            ))
-              ListTile(
-                title: Text(item.title),
-                subtitle: Text(
-                  '${aspectLabel(item.aspect)} • tingkat ${item.level}',
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: AppTokens.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppTokens.radiusXLarge),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppTokens.space16),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pilih Materi Rekomendasi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
                 ),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  final controller = TextEditingController();
-                  try {
-                    final reason = await showDialog<String>(
-                      context: pageContext,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Alasan perubahan'),
-                        content: TextField(
-                          controller: controller,
-                          autofocus: true,
-                          maxLines: 2,
-                          decoration: const InputDecoration(
-                            labelText: 'Alasan rekomendasi',
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text('Batal'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(
-                              dialogContext,
-                              controller.text.trim(),
-                            ),
-                            child: const Text('Simpan'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (reason == null || !pageContext.mounted) return;
-                    final saved = StudentDemoStore.instance
-                        .setTeacherRecommendation(
-                          studentId: studentId,
-                          materialId: item.id,
-                          reason: reason,
-                        );
-                    ScaffoldMessenger.of(pageContext).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          saved ? 'Rekomendasi diperbarui: ${item.title}' : 'Isi alasan dan pastikan materi dapat digunakan.',
-                        ),
-                      ),
-                    );
-                  } finally {
-                    controller.dispose();
-                  }
-                },
               ),
-          ],
+              const Divider(height: 1),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(AppTokens.space16),
+                  children: [
+                    for (final item in store.materials.where(
+                      (item) =>
+                          item.status == 'aktif' &&
+                          store.practiceQuestionsForMaterial(item.id).isNotEmpty,
+                    ))
+                      _RecommendationMaterialTile(
+                        item: item,
+                        onTap: () async {
+                          Navigator.pop(sheetContext);
+                          final controller = TextEditingController();
+                          try {
+                            final reason = await showDialog<String>(
+                              context: pageContext,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Alasan perubahan'),
+                                content: TextField(
+                                  controller: controller,
+                                  autofocus: true,
+                                  maxLines: 2,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Alasan rekomendasi',
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dialogContext),
+                                    child: const Text('Batal'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(
+                                      dialogContext,
+                                      controller.text.trim(),
+                                    ),
+                                    child: const Text('Simpan'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (reason == null || !pageContext.mounted) return;
+                            final saved = StudentDemoStore.instance
+                                .setTeacherRecommendation(
+                                  studentId: studentId,
+                                  materialId: item.id,
+                                  reason: reason,
+                                );
+                            ScaffoldMessenger.of(pageContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  saved
+                                      ? 'Rekomendasi diperbarui: ${item.title}'
+                                      : 'Isi alasan dan pastikan materi dapat digunakan.',
+                                ),
+                              ),
+                            );
+                          } finally {
+                            controller.dispose();
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    ).whenComplete(() {});
+  }
+}
+
+class _RecommendationMaterialTile extends StatelessWidget {
+  const _RecommendationMaterialTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final DemoMaterial item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(bottom: AppTokens.space8),
+    child: ListTile(
+      onTap: onTap,
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: _aspectColor(item.aspect).withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+        ),
+        child: Icon(
+          _aspectIcon(item.aspect),
+          color: _aspectColor(item.aspect),
+          size: 22,
+        ),
+      ),
+      title: Text(
+        item.title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      subtitle: Text(
+        '${aspectLabel(item.aspect)} • tingkat ${item.level}',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppTokens.mutedText,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded),
+    ),
+  );
+}
+
+Color _aspectColor(String aspect) => switch (aspect) {
+  'huruf' => const Color(0xFFFFB74D),
+  'suku_kata' => const Color(0xFF81C784),
+  'kata' => const Color(0xFF64B5F6),
+  'kalimat' => const Color(0xFFE57373),
+  _ => AppTokens.primary,
+};
+
+IconData _aspectIcon(String aspect) => switch (aspect) {
+  'huruf' => Icons.text_fields_rounded,
+  'suku_kata' => Icons.format_list_bulleted_rounded,
+  'kata' => Icons.auto_stories_rounded,
+  'kalimat' => Icons.menu_book_rounded,
+  _ => Icons.auto_stories_rounded,
+};
+
+class _StudentInfoCard extends StatelessWidget {
+  const _StudentInfoCard({required this.student});
+
+  final DemoStudent student;
+
+  @override
+  Widget build(BuildContext context) => TeacherPanel(
+    title: 'Informasi siswa',
+    padding: const EdgeInsets.all(AppTokens.space20),
+    child: Wrap(
+      spacing: AppTokens.space12,
+      runSpacing: AppTokens.space12,
+      children: [
+        StatusBadge(
+          label: student.active ? 'Aktif' : 'Nonaktif',
+          variant: student.active ? StatusVariant.active : StatusVariant.neutral,
+        ),
+        StatusBadge(
+          label: student.parentConsent
+              ? 'Persetujuan rekaman: ya'
+              : 'Persetujuan rekaman: belum',
+          variant: student.parentConsent ? StatusVariant.success : StatusVariant.warning,
+        ),
+        StatusBadge(
+          label: student.aiConsent
+              ? 'Persetujuan AI: ya'
+              : 'Persetujuan AI: tidak',
+          variant: student.aiConsent ? StatusVariant.info : StatusVariant.neutral,
+        ),
+      ],
+    ),
+  );
+}
+
+class _MasteryCard extends StatelessWidget {
+  const _MasteryCard({
+    required this.latestMastery,
+    required this.store,
+  });
+
+  final Map<String, MasteryRecord?> latestMastery;
+  final TeacherDemoStore store;
+
+  @override
+  Widget build(BuildContext context) => TeacherPanel(
+    title: 'Penguasaan membaca',
+    padding: const EdgeInsets.all(AppTokens.space20),
+    child: latestMastery.isEmpty
+        ? EmptyState(
+            message: 'Belum ada catatan penguasaan dari diagnostik lengkap.',
+            icon: Icons.assignment_outlined,
+          )
+        : Column(
+            children: [
+              for (final aspect in const [
+                'huruf',
+                'suku_kata',
+                'kata',
+                'kalimat',
+              ])
+                if (latestMastery[aspect] case final record?)
+                  _MasteryRow(
+                    record: record,
+                    aspectColor: _aspectColor(record.aspect),
+                  ),
+            ],
+          ),
+  );
+}
+
+class _MasteryRow extends StatelessWidget {
+  const _MasteryRow({
+    required this.record,
+    required this.aspectColor,
+  });
+
+  final MasteryRecord record;
+  final Color aspectColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMastered = record.score >= 60;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTokens.space10),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: aspectColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+            ),
+            child: Icon(
+              _aspectIcon(record.aspect),
+              color: aspectColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppTokens.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  aspectLabel(record.aspect),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isMastered ? AppTokens.text : AppTokens.mutedText,
+                  ),
+                ),
+                const SizedBox(height: AppTokens.space4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+                  child: LinearProgressIndicator(
+                    value: record.score / 100,
+                    minHeight: 8,
+                    backgroundColor: AppTokens.outline,
+                    color: record.score < 60
+                        ? AppTokens.warning
+                        : record.score < 80
+                            ? AppTokens.accent
+                            : AppTokens.success,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTokens.space12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${record.score}%',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: isMastered ? AppTokens.success : AppTokens.warning,
+                ),
+              ),
+              Text(
+                _masteryStatusLabel(record.status),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: aspectColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _masteryStatusLabel(String status) => switch (status) {
+    'dikuasai' => 'Dikuasai',
+    'sedang_berlatih' => 'Sedang dilatih',
+    _ => 'Belum dikuasai',
+  };
+}
+
+class _DiagnosticResultsCard extends StatelessWidget {
+  const _DiagnosticResultsCard({
+    required this.teacherId,
+    required this.student,
+    required this.store,
+    required this.learningStore,
+  });
+
+  final int teacherId;
+  final DemoStudent student;
+  final TeacherDemoStore store;
+  final StudentDemoStore learningStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final diagnostic = learningStore.latestDiagnosticForTeacher(
+      teacherId,
+      student.id,
+    );
+    return TeacherPanel(
+      title: 'Hasil diagnostik',
+      padding: const EdgeInsets.all(AppTokens.space20),
+      child: diagnostic == null
+          ? EmptyState(
+              message: 'Belum ada hasil diagnostik untuk siswa ini.',
+              icon: Icons.assignment_outlined,
+            )
+          : Column(
+              children: [
+                for (final entry in diagnostic.aspectScores.entries)
+                  _DiagnosticScoreRow(
+                    aspect: entry.key,
+                    score: entry.value,
+                  ),
+              ],
+            ),
     );
   }
 }
 
-String _masteryStatusLabel(String status) => switch (status) {
-  'dikuasai' => 'Dikuasai',
-  'sedang_berlatih' => 'Sedang dilatih',
-  _ => 'Belum dikuasai',
-};
+class _DiagnosticScoreRow extends StatelessWidget {
+  const _DiagnosticScoreRow({
+    required this.aspect,
+    required this.score,
+  });
+
+  final String aspect;
+  final int score;
+
+  Color get _progressColor {
+    if (score < 60) return AppTokens.warning;
+    if (score < 80) return AppTokens.accent;
+    return AppTokens.success;
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppTokens.space8),
+    child: Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: _aspectColor(aspect).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+          ),
+          child: Icon(
+            _aspectIcon(aspect),
+            color: _aspectColor(aspect),
+            size: 22,
+          ),
+        ),
+        const SizedBox(width: AppTokens.space12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                aspectLabel(aspect),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppTokens.space4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+                child: LinearProgressIndicator(
+                  value: score / 100,
+                  minHeight: 8,
+                  backgroundColor: AppTokens.outline,
+                  color: _progressColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppTokens.space12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$score%',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: _progressColor,
+              ),
+            ),
+            Text(
+              _masteryLabel(score),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: _progressColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  String _masteryLabel(int score) => score < 60
+      ? 'Belum dikuasai'
+      : score < 80
+      ? 'Sedang berlatih'
+      : 'Dikuasai';
+}
+
+class _RecommendationCard extends StatelessWidget {
+  const _RecommendationCard({
+    required this.student,
+    required this.recommendation,
+    required this.materialGaps,
+    required this.latestMastery,
+    required this.store,
+    required this.learningStore,
+    required this.onChangeRecommendation,
+  });
+
+  final DemoStudent student;
+  final LearningRecommendation? recommendation;
+  final List<MaterialGapRecord> materialGaps;
+  final Map<String, MasteryRecord> latestMastery;
+  final TeacherDemoStore store;
+  final StudentDemoStore learningStore;
+  final VoidCallback onChangeRecommendation;
+
+  @override
+  Widget build(BuildContext context) => TeacherPanel(
+    title: 'Rekomendasi dan pendampingan',
+    padding: const EdgeInsets.all(AppTokens.space20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ringkasan: ${masterySummaryFor({for (final entry in latestMastery.entries) entry.key: entry.value.score})}',
+        ),
+        const SizedBox(height: AppTokens.space12),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rekomendasi aktif',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppTokens.mutedText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppTokens.space4),
+                  Text(
+                    recommendation == null
+                        ? 'Belum ada'
+                        : store.materialById(recommendation!.materialId)?.title ?? 'Materi tidak tersedia',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (recommendation != null) ...[
+                    const SizedBox(height: AppTokens.space4),
+                    Text(
+                      '${recommendation!.source == 'guru' ? 'Dari Guru' : 'Dari sistem'} · ${recommendation!.reason}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTokens.mutedText,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: onChangeRecommendation,
+              icon: const Icon(Icons.swap_horiz_rounded),
+              label: const Text('Ganti rekomendasi'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTokens.space12),
+        if (materialGaps.isNotEmpty) ...[
+          for (final gap in materialGaps)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTokens.space6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.library_add_rounded,
+                    size: 18,
+                    color: AppTokens.warning,
+                  ),
+                  const SizedBox(width: AppTokens.space8),
+                  Expanded(
+                    child: Text(
+                      'Materi perlu disiapkan: ${aspectLabel(gap.aspect)} tingkat ${gap.level}. ${gap.reason}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTokens.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        const SizedBox(height: AppTokens.space16),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Perlu pendampingan'),
+          subtitle: const Text('Tandai jika siswa ini memerlukan perhatian khusus'),
+          value: learningStore.needsSupportForStudent(student.id),
+          activeThumbColor: AppTokens.primary,
+          onChanged: (value) =>
+              learningStore.setTeacherSupportFlag(student.id, value),
+        ),
+      ],
+    ),
+  )
+
+  // Need to get latestMastery from parent - passing via getter would be cleaner
+  // For now, using a workaround
+  ;
+}
+
+class _RecordingsCard extends StatelessWidget {
+  const _RecordingsCard({
+    required this.student,
+    required this.store,
+  });
+
+  final DemoStudent student;
+  final TeacherDemoStore store;
+
+  @override
+  Widget build(BuildContext context) => TeacherPanel(
+    title: 'Rekaman dan evaluasi',
+    padding: const EdgeInsets.all(AppTokens.space20),
+    child: Column(
+      children: [
+        for (final recording in store.recordings.where(
+          (item) => item.studentId == student.id,
+        ))
+          _RecordingTile(recording: recording),
+        if (!store.recordings.any(
+          (item) => item.studentId == student.id,
+        ))
+          EmptyState(
+            message: 'Belum ada aktivitas rekaman.',
+            icon: Icons.mic_none_rounded,
+          ),
+      ],
+    ),
+  );
+}
+
+class _RecordingTile extends StatelessWidget {
+  const _RecordingTile({required this.recording});
+
+  final DemoRecording recording;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppTokens.space8),
+    child: Row(
+      children: [
+        CircleAvatar(
+          backgroundColor: AppTokens.secondary.withValues(alpha: 0.12),
+          child: Icon(
+            Icons.graphic_eq_rounded,
+            color: AppTokens.secondary,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: AppTokens.space12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${aspectLabel(recording.aspect)} • ${recording.targetText}',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                recording.status == 'dievaluasi'
+                    ? 'Ketepatan ${recording.accuracyScore}% • Kelancaran ${recording.fluencyScore}%'
+                    : 'Menunggu evaluasi',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTokens.mutedText,
+                ),
+              ),
+            ],
+          ),
+        ),
+        StatusBadge(
+          label: recording.status == 'dievaluasi' ? 'Selesai' : 'Menunggu',
+          variant: recording.status == 'dievaluasi' ? StatusVariant.success : StatusVariant.pending,
+        ),
+      ],
+    ),
+  );
+}

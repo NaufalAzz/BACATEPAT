@@ -16,12 +16,15 @@ class DiagnosticsPage extends StatelessWidget {
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
         TeacherPageHeading(
-          title: 'Tes Diagnostik',
-          subtitle: 'Susun tes dari soal yang telah ditinjau, lalu aktifkan untuk kelas.',
+          section: 'Tes Diagnostik',
+          title: 'Daftar tes',
+          subtitle:
+              'Susun tes dari soal yang telah ditinjau, lalu aktifkan untuk kelas.',
         ),
         FilledButton.icon(
           key: const ValueKey('create-diagnostic'),
-          onPressed: () => _createDiagnostic(context),
+          onPressed: () =>
+              Navigator.pushNamed(context, '/guru/diagnostik/tambah'),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Buat tes diagnostik'),
         ),
@@ -45,8 +48,10 @@ class DiagnosticsPage extends StatelessWidget {
                       ),
                     ),
                     StatusBadge(
-                      label: test.status,
-                      good: test.status == 'aktif',
+                      label: _statusLabel(test.status),
+                      variant: test.status == 'aktif'
+                          ? StatusVariant.active
+                          : StatusVariant.pending,
                     ),
                   ],
                 ),
@@ -97,103 +102,124 @@ class DiagnosticsPage extends StatelessWidget {
       ],
     );
   }
+}
 
-  void _createDiagnostic(BuildContext context) {
+class DiagnosticBuilderPage extends StatefulWidget {
+  const DiagnosticBuilderPage({super.key});
+
+  @override
+  State<DiagnosticBuilderPage> createState() => _DiagnosticBuilderPageState();
+}
+
+class _DiagnosticBuilderPageState extends State<DiagnosticBuilderPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _title = TextEditingController();
+  final Set<int> _selectedQuestions = {};
+  late int? _classId;
+
+  @override
+  void initState() {
+    super.initState();
+    final classes = TeacherDemoStore.instance.accessibleClasses;
+    _classId = classes.isEmpty ? null : classes.first.id;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final store = TeacherDemoStore.instance;
-    final titleController = TextEditingController();
-    final classes = store.accessibleClasses;
-    if (classes.isEmpty) return;
-    int classId = classes.first.id;
-    final selected = <int>{};
-    final approved = store.questions
-        .where(
-          (item) =>
-              item.type == 'Pilihan ganda' &&
-              item.canBeUsedFor('diagnostik', materials: store.materials),
-        )
-        .toList();
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Buat tes diagnostik'),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Nama tes'),
-                  ),
-                  const SizedBox(height: AppTokens.space12),
-                  DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    initialValue: classId,
-                    decoration: const InputDecoration(labelText: 'Kelas'),
-                    items: [
-                      for (final item in classes)
-                        DropdownMenuItem(
-                          value: item.id,
-                          child: Text(item.name),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => classId = value ?? classId),
-                  ),
-                  const SizedBox(height: AppTokens.space12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Pilih soal yang disetujui',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  for (final question in approved.where(
-                    (item) => item.level <= store.classById(classId)!.grade,
-                  ))
-                    CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      value: selected.contains(question.id),
-                      title: Text(question.prompt),
-                      subtitle: Text(aspectLabel(question.aspect)),
-                      onChanged: (checked) => setDialogState(() {
-                        if (checked == true) {
-                          selected.add(question.id);
-                        } else {
-                          selected.remove(question.id);
-                        }
-                      }),
-                    ),
-                ],
-              ),
+    final grade = _classId == null ? null : store.classById(_classId!)?.grade;
+    final questions = store.questions.where(
+      (item) =>
+          item.type == 'Pilihan ganda' &&
+          item.canBeUsedFor('diagnostik', materials: store.materials) &&
+          (grade == null || item.level <= grade),
+    );
+    return ListView(
+      padding: const EdgeInsets.all(AppTokens.space16),
+      children: [
+        const TeacherPageHeading(
+          title: 'Buat Tes Diagnostik',
+          subtitle: 'Pilih kelas dan soal untuk tes membaca.',
+        ),
+        TeacherPanel(
+          title: 'Informasi tes',
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _title,
+                  decoration: const InputDecoration(labelText: 'Nama tes'),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Nama tes wajib diisi.'
+                      : null,
+                ),
+                const SizedBox(height: AppTokens.space16),
+                DropdownButtonFormField<int>(
+                  isExpanded: true,
+                  initialValue: _classId,
+                  decoration: const InputDecoration(labelText: 'Kelas'),
+                  items: [
+                    for (final item in store.accessibleClasses)
+                      DropdownMenuItem(value: item.id, child: Text(item.name)),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _classId = value;
+                    _selectedQuestions.clear();
+                  }),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (titleController.text.trim().isEmpty || selected.isEmpty) {
-                  return;
-                }
-                store.addDiagnostic(
-                  title: titleController.text.trim(),
-                  classId: classId,
-                  questionIds: selected.toList(),
-                );
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Simpan draf'),
-            ),
-          ],
         ),
-      ),
-    ).whenComplete(titleController.dispose);
+        const SizedBox(height: AppTokens.space16),
+        TeacherPanel(
+          title: 'Pilih soal',
+          child: Column(
+            children: [
+              for (final question in questions)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _selectedQuestions.contains(question.id),
+                  title: Text(question.prompt),
+                  subtitle: Text(aspectLabel(question.aspect)),
+                  onChanged: (selected) => setState(() {
+                    if (selected == true) {
+                      _selectedQuestions.add(question.id);
+                    } else {
+                      _selectedQuestions.remove(question.id);
+                    }
+                  }),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space20),
+        FilledButton(onPressed: _save, child: const Text('Simpan draf')),
+      ],
+    );
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_classId == null || _selectedQuestions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih kelas dan minimal satu soal.')),
+      );
+      return;
+    }
+    TeacherDemoStore.instance.addDiagnostic(
+      title: _title.text.trim(),
+      classId: _classId!,
+      questionIds: _selectedQuestions.toList(),
+    );
+    Navigator.maybePop(context);
   }
 }
 
@@ -494,6 +520,13 @@ class _DiagnosticStudentResult {
   final DemoStudent student;
   final DiagnosticAttempt attempt;
 }
+
+String _statusLabel(String status) => switch (status) {
+  'aktif' => 'Aktif',
+  'draf' => 'Draf',
+  'arsip' => 'Arsip',
+  _ => status,
+};
 
 String _diagnosticStatus(int score) => score < 60
     ? 'Belum dikuasai'

@@ -49,7 +49,8 @@ class _ReportsPageState extends State<ReportsPage> {
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
         const TeacherPageHeading(
-          title: 'Laporan',
+          section: 'Laporan',
+          title: 'Ringkasan belajar',
           subtitle: 'Tinjau ringkasan belajar dalam periode yang dipilih.',
         ),
         TeacherPanel(

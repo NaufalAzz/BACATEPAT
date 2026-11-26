@@ -38,182 +38,313 @@ class _StudentPracticeListPageState extends State<StudentPracticeListPage> {
             .toList();
         final recommendation = studentStore.activeRecommendation;
         final recommendationId = recommendation?.materialId;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            const StudentPageHeading(
-              title: 'Latihan Membaca',
-              subtitle: 'Pilih bacaan yang ingin kamu latih hari ini.',
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final option in const [
-                    ('semua', 'Semua'),
-                    ('huruf', 'Huruf'),
-                    ('suku_kata', 'Suku kata'),
-                    ('kata', 'Kata'),
-                    ('kalimat', 'Kalimat'),
-                  ]) ...[
-                    if (option.$1 != 'semua') const SizedBox(width: 6),
-                    ChoiceChip(
-                      key: ValueKey('practice-filter-${option.$1}'),
-                      label: Text(option.$2),
-                      selected: _aspect == option.$1,
-                      onSelected: (_) => setState(() => _aspect = option.$1),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ],
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space16,
+            AppTokens.space16,
+            AppTokens.space16,
+            AppTokens.space24,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const StudentSectionLabel(
+                'Ayo membaca',
+                color: AppTokens.primary,
               ),
-            ),
-            const SizedBox(height: AppTokens.space16),
-            if (!studentStore.hasCompleteDiagnosticBaseline)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppTokens.space12),
-                child: Text(
-                  studentStore.hasAnyDiagnostic
-                      ? 'Hasil diagnostik belum mencakup semua aspek. Minta bantuan Gurumu untuk melengkapi tes.'
-                      : 'Kerjakan tes diagnostik terlebih dahulu agar latihan yang disarankan sesuai kemampuanmu.',
-                  style: const TextStyle(
-                    color: AppTokens.mutedText,
-                    fontSize: 12,
-                  ),
+              const SizedBox(height: AppTokens.space4),
+              const Text(
+                'Pilih latihanmu',
+                style: TextStyle(
+                  fontSize: 22,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.text,
                 ),
               ),
-            if (materials.isEmpty)
-              const StudentEmptyState(
-                message: 'Belum ada latihan untuk pilihan ini. Coba pilihan lain ya!',
-              )
-            else
-              for (final material in materials)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 9),
-                  child: Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
+              const SizedBox(height: AppTokens.space4),
+              const Text(
+                'Mulai dari yang bertanda pilihan Guru.',
+                style: TextStyle(fontSize: 12.5, color: AppTokens.mutedText),
+              ),
+              const SizedBox(height: AppTokens.space16),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final option in const [
+                      ('semua', 'Semua', Icons.apps_rounded),
+                      ('huruf', 'Huruf', Icons.text_fields_rounded),
+                      (
+                        'suku_kata',
+                        'Suku kata',
+                        Icons.format_list_bulleted_rounded,
+                      ),
+                      ('kata', 'Kata', Icons.auto_stories_rounded),
+                      ('kalimat', 'Kalimat', Icons.menu_book_rounded),
+                    ]) ...[
+                      if (option.$1 != 'semua')
+                        const SizedBox(width: AppTokens.space8),
+                      _AspectFilterChip(
+                        label: option.$2,
+                        selected: _aspect == option.$1,
+                        onSelected: (_) => setState(() => _aspect = option.$1),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTokens.space20),
+              if (materials.isEmpty)
+                StudentEmptyState(
+                  message:
+                      'Belum ada latihan untuk pilihan ini.\nCoba pilih aspek lain ya!',
+                  icon: Icons.menu_book_outlined,
+                )
+              else
+                for (final material in materials)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppTokens.space12),
+                    child: _MaterialCard(
                       key: ValueKey('practice-material-${material.id}'),
-                      borderRadius: BorderRadius.circular(12),
+                      material: material,
+                      isRecommended: material.id == recommendationId,
+                      score: studentStore.practiceScores[material.aspect],
                       onTap: () => Navigator.pushNamed(
                         context,
                         '/siswa/latihan/materi',
                         arguments: material.id,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 48,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _aspectColor(material.aspect),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: Text(
-                                _aspectGlyph(material.aspect),
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  color: AppTokens.primary,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 11),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          material.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: AppTokens.text,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                      if (material.id == recommendationId)
-                                        const Icon(
-                                          Icons.star_rounded,
-                                          size: 15,
-                                          color: Color(0xFFD8A42A),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    '${aspectLabel(material.aspect)} · Tingkat ${material.level}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppTokens.mutedText,
-                                    ),
-                                  ),
-                                  if (material.id == recommendationId &&
-                                      recommendation != null) ...[
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      recommendation.source == 'guru'
-                                          ? 'Pilihan Gurumu: ${recommendation.reason}'
-                                          : 'Disarankan: ${recommendation.reason}',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: AppTokens.mutedText,
-                                      ),
-                                    ),
-                                  ],
-                                  finalScore(material.aspect, studentStore),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              size: 21,
-                              color: AppTokens.mutedText,
-                            ),
-                          ],
+                    ),
+                  ),
+              if (!studentStore.hasCompleteDiagnosticBaseline)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppTokens.space8),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppTokens.space12),
+                    decoration: BoxDecoration(
+                      color: AppTokens.sunshine,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+                      border: Border.all(color: const Color(0xFFEBD78D)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: AppTokens.warning,
+                          size: 18,
                         ),
-                      ),
+                        const SizedBox(width: AppTokens.space10),
+                        Expanded(
+                          child: Text(
+                            studentStore.hasAnyDiagnostic
+                                ? 'Hasil diagnostik belum mencakup semua aspek. Minta bantuan Gurumu untuk melengkapi tes.'
+                                : 'Kerjakan tes diagnostik terlebih dahulu agar latihan yang disarankan sesuai kemampuanmu.',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: AppTokens.warning,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
+}
 
-  Widget finalScore(String aspect, StudentDemoStore store) {
-    final score = store.practiceScores[aspect];
-    if (score == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 5),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(9),
-        child: LinearProgressIndicator(
-          value: score / 100,
-          minHeight: 5,
-          backgroundColor: const Color(0xFFE9EFED),
-          color: AppTokens.primary,
+class _AspectFilterChip extends StatelessWidget {
+  const _AspectFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
+
+  @override
+  Widget build(BuildContext context) => FilterChip(
+    label: Text(label),
+    selected: selected,
+    onSelected: onSelected,
+    selectedColor: AppTokens.text,
+    labelStyle: TextStyle(
+      fontSize: 12.5,
+      fontWeight: FontWeight.w700,
+      color: selected ? AppTokens.surface : AppTokens.text,
+    ),
+    backgroundColor: AppTokens.surface,
+    side: BorderSide(
+      color: selected ? AppTokens.text : AppTokens.outline,
+    ),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppTokens.space10,
+      vertical: AppTokens.space6,
+    ),
+    showCheckmark: false,
+  );
+}
+
+class _MaterialCard extends StatelessWidget {
+  const _MaterialCard({
+    super.key,
+    required this.material,
+    required this.isRecommended,
+    this.score,
+    required this.onTap,
+  });
+
+  final DemoMaterial material;
+  final bool isRecommended;
+  final int? score;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = _aspectTint(material.aspect);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTokens.surface,
+            borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+            border: Border.all(
+              color: isRecommended ? AppTokens.primary : AppTokens.outline,
+            ),
+            boxShadow: AppTokens.cardShadow,
+          ),
+          padding: const EdgeInsets.all(AppTokens.space12),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 60,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+                ),
+                child: Text(
+                  _aspectGlyph(material.aspect),
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: AppTokens.text,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppTokens.space12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isRecommended) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTokens.sunshine,
+                          borderRadius: BorderRadius.circular(
+                            AppTokens.radiusRound,
+                          ),
+                        ),
+                        child: const Text(
+                          'PILIHAN GURU',
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            letterSpacing: 0.6,
+                            fontWeight: FontWeight.w900,
+                            color: AppTokens.warning,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    Text(
+                      material.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppTokens.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${aspectLabel(material.aspect)} · Tingkat ${material.level}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppTokens.mutedText,
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.space8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+                      child: LinearProgressIndicator(
+                        value: (score ?? 0) / 100,
+                        minHeight: 4,
+                        backgroundColor: const Color(0xFFE9EEEC),
+                        color: _aspectBarColor(material.aspect),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppTokens.space8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppTokens.mutedText,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+String _aspectGlyph(String aspect) => switch (aspect) {
+  'huruf' => 'Aa',
+  'suku_kata' => 'ba',
+  'kata' => 'tas',
+  'kalimat' => 'Aa…',
+  _ => 'ba',
+};
+
+Color _aspectTint(String aspect) => switch (aspect) {
+  'huruf' => const Color(0xFFFCEFC9),
+  'suku_kata' => AppTokens.sky,
+  'kata' => AppTokens.coralSoft,
+  _ => const Color(0xFFF1EFE6),
+};
+
+Color _aspectBarColor(String aspect) => switch (aspect) {
+  'huruf' => AppTokens.accent,
+  'suku_kata' => AppTokens.secondary,
+  'kata' => AppTokens.coral,
+  _ => AppTokens.primary,
+};
+
 class StudentMaterialDetailPage extends StatelessWidget {
-  const StudentMaterialDetailPage({this.materialId, super.key});
+  const StudentMaterialDetailPage({super.key, this.materialId});
 
   final int? materialId;
 
@@ -224,9 +355,10 @@ class StudentMaterialDetailPage extends StatelessWidget {
         ? null
         : store.materialById(materialId!);
     if (material == null || material.status != 'aktif') {
-      return const Center(
+      return Center(
         child: StudentEmptyState(
           message: 'Materi ini belum tersedia. Coba pilih latihan lain ya!',
+          icon: Icons.menu_book_outlined,
         ),
       );
     }
@@ -239,123 +371,145 @@ class StudentMaterialDetailPage extends StatelessWidget {
     final hasPracticeQuestions = LearningSession.enabled
         ? catalog.isNotEmpty && catalog.every((q) => q.type == 'Pilihan ganda')
         : store.practiceQuestionsForMaterial(material.id).isNotEmpty;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        Center(
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
+    final contentLines = material.content.split('\n');
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTokens.coralSoft,
+                borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+              ),
+              child: Text(
+                '${aspectLabel(material.aspect).toUpperCase()} · TINGKAT ${material.level}',
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: AppTokens.coralDark,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
                 ),
-                decoration: BoxDecoration(
-                  color: AppTokens.coralSoft,
-                  borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTokens.space10),
+          Text(
+            material.title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+              color: AppTokens.text,
+            ),
+          ),
+          const SizedBox(height: AppTokens.space4),
+          const Text(
+            'Lihat, dengar, lalu baca bersama.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: AppTokens.mutedText),
+          ),
+          const SizedBox(height: AppTokens.space16),
+          StudentPanel(
+            padding: const EdgeInsets.all(AppTokens.space20),
+            child: Column(
+              children: [
+                Image.asset(
+                  'assets/illustrations/reading-book.png',
+                  width: 120,
+                  height: 96,
+                  semanticLabel: 'Ilustrasi buku terbuka',
                 ),
-                child: Text(
-                  '${aspectLabel(material.aspect).toUpperCase()} · TINGKAT ${material.level}',
+                const SizedBox(height: AppTokens.space12),
+                Text(
+                  contentLines.first.replaceAll(' • ', '   '),
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 9,
-                    color: AppTokens.coralDark,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 26,
+                    height: 1.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTokens.text,
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                material.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 23,
-                  color: AppTokens.text,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Lihat, dengar, lalu baca bersama.',
-                style: TextStyle(fontSize: 13, color: AppTokens.mutedText),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        StudentPanel(
-          color: Colors.white,
-          child: Column(
-            children: [
-              Image.asset(
-                'assets/illustrations/reading-book.png',
-                width: 112,
-                height: 98,
-                semanticLabel: 'Ilustrasi buku terbuka',
-              ),
-              const SizedBox(height: AppTokens.space16),
-              Text(
-                material.title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppTokens.space8),
-              Text(
-                '${aspectLabel(material.aspect)} • tingkat ${material.level}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        StudentPanel(
-          color: StudentColors.sunshine,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Ayo baca bersama!',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppTokens.space12),
-              Center(
-                child: Text(
-                  material.content.replaceAll(' • ', '    '),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displaySmall
-                      ?.copyWith(height: 1.5),
-                ),
-              ),
-              const SizedBox(height: AppTokens.space12),
-              const Text(
-                'Tunjuk setiap huruf atau kata sambil membacanya. Pelan-pelan saja.',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        if (hasPracticeQuestions)
-          StudentAction(
-            key: const ValueKey('material-start-exercise'),
-            label: 'Mulai latihan',
-            icon: Icons.play_arrow_rounded,
-            onPressed: () => Navigator.pushNamed(
-              context,
-              '/siswa/latihan/kerjakan',
-              arguments: material.id,
+                if (contentLines.length > 1) ...[
+                  const SizedBox(height: AppTokens.space8),
+                  Text(
+                    contentLines.skip(1).join('\n').replaceAll(' • ', '   '),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.6,
+                      color: AppTokens.mutedText,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          )
-        else
-          const StudentEmptyState(
-            message:
-                'Latihan untuk materi ini belum tersedia. Coba materi lain ya!',
           ),
-      ],
+          const SizedBox(height: AppTokens.space12),
+          Container(
+            padding: const EdgeInsets.all(AppTokens.space14),
+            decoration: BoxDecoration(
+              color: AppTokens.sunshine,
+              borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+              border: Border.all(color: const Color(0xFFEBD78D)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  size: 18,
+                  color: AppTokens.warning,
+                ),
+                SizedBox(width: AppTokens.space10),
+                Expanded(
+                  child: Text(
+                    'Tunjuk setiap huruf atau kata sambil membacanya. Pelan-pelan saja.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.45,
+                      color: AppTokens.warning,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTokens.space20),
+          if (hasPracticeQuestions)
+            StudentAction(
+              key: const ValueKey('material-start-exercise'),
+              label: 'Mulai latihan',
+              icon: Icons.play_arrow_rounded,
+              onPressed: () => Navigator.pushNamed(
+                context,
+                '/siswa/latihan/kerjakan',
+                arguments: material.id,
+              ),
+            )
+          else
+            StudentEmptyState(
+              message:
+                  'Latihan untuk materi ini belum tersedia.\nCoba materi lain ya!',
+              icon: Icons.quiz_outlined,
+            ),
+        ],
+      ),
     );
   }
 }
 
 class StudentExercisePage extends StatefulWidget {
-  const StudentExercisePage({this.materialId, super.key});
+  const StudentExercisePage({super.key, this.materialId});
   final int? materialId;
 
   @override
@@ -422,6 +576,7 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
         _busy = false;
       }
     }
+
     setState(() => _selected = index);
   }
 
@@ -475,9 +630,42 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
           }
           if (state.hasError) {
             return Center(
-              child: TextButton(
-                onPressed: () => setState(() => _loading = _startRemote()),
-                child: Text('${state.error} · Coba lagi'),
+              child: StudentPanel(
+                padding: const EdgeInsets.all(AppTokens.space20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 40,
+                      color: AppTokens.error,
+                    ),
+                    const SizedBox(height: AppTokens.space12),
+                    const Text(
+                      'Gagal memuat latihan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.space8),
+                    Text(
+                      '${state.error}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTokens.mutedText,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppTokens.space16),
+                    StudentAction(
+                      label: 'Coba lagi',
+                      icon: Icons.refresh_rounded,
+                      onPressed: () => setState(() => _loading = _startRemote()),
+                      expanded: false,
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -491,166 +679,156 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
   Widget _exercise(BuildContext context) {
     final material = _material;
     if (material == null || material.status != 'aktif') {
-      return const Center(
+      return Center(
         child: StudentEmptyState(message: 'Materi ini belum tersedia.'),
       );
     }
     if (_questions.isEmpty) {
-      return const Center(
+      return Center(
         child: StudentEmptyState(
-          message:
-              'Latihan untuk materi ini belum tersedia. Coba materi lain ya!',
+          message: 'Latihan untuk materi ini belum tersedia. Coba materi lain ya!',
         ),
       );
     }
     if (_finished) return _result(context);
 
     final question = _questions[_questionIndex];
+    final answered = _selected != null;
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Soal ${_questionIndex + 1} dari ${_questions.length}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTokens.mutedText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_correct + (_isRight ? 1 : 0)} bintang',
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTokens.secondary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(99),
-                child: LinearProgressIndicator(
-                  value: (_questionIndex + 1) / _questions.length,
-                  minHeight: 6,
-                  color: AppTokens.coral,
-                  backgroundColor: const Color(0xFFE7EDEB),
-                ),
-              ),
-              const SizedBox(height: 14),
-              StudentPanel(
-                color: Colors.white,
-                child: Column(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.space16,
+              AppTokens.space12,
+              AppTokens.space16,
+              AppTokens.space16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    if (question.picture.isNotEmpty) ...[
-                      Semantics(
-                        label: 'Gambar petunjuk',
-                        child: Text(
-                          question.picture,
-                          style: const TextStyle(fontSize: 54, height: 1.1),
+                    Expanded(
+                      child: Text(
+                        '${_questionIndex + 1} dari ${_questions.length}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTokens.text,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                    ],
-                    Text(
-                      question.prompt,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: AppTokens.text,
-                      ),
                     ),
-                    const SizedBox(height: 8),
-                    QuestionAudioButton(
-                      key: ValueKey('exercise-audio-$_questionIndex'),
-                      text: question.prompt,
-                      kind: questionSpeechKindForQuestion(
-                        aspect: question.aspect,
-                        questionType: question.type,
+                    Text(
+                      '+${_correct * 10} bintang',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppTokens.secondary,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  for (var i = 0; i < question.choices.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        key: ValueKey('exercise-answer-$i'),
-                        onPressed: _selected == null ? () => _choose(i) : null,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 50),
-                          backgroundColor: _selected == i
-                              ? _isRight
-                                    ? StudentColors.mint
-                                    : StudentColors.peach
-                              : Colors.white,
-                          side: BorderSide(
-                            color: _selected == i
-                                ? _isRight
-                                      ? AppTokens.primary
-                                      : AppTokens.coralDark
-                                : AppTokens.outline,
-                            width: 2,
-                          ),
-                        ),
-                        child: Text(
-                          question.choices[i],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppTokens.text,
-                          ),
+                const SizedBox(height: AppTokens.space8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusRound),
+                  child: LinearProgressIndicator(
+                    value: (_questionIndex + 1) / _questions.length,
+                    minHeight: 4,
+                    color: AppTokens.coral,
+                    backgroundColor: const Color(0xFFE4EAEA),
+                  ),
+                ),
+                const SizedBox(height: AppTokens.space24),
+                if (question.picture.isNotEmpty)
+                  Semantics(
+                    label: 'Gambar petunjuk',
+                    child: Text(
+                      question.picture,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 88, height: 1.2),
+                    ),
+                  ),
+                const SizedBox(height: AppTokens.space12),
+                if (question.prompt != 'Pilih kata yang cocok dengan gambar.')
+                  Text(
+                    question.prompt,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                      color: AppTokens.text,
+                    ),
+                  ),
+                const SizedBox(height: AppTokens.space16),
+                Row(
+                  children: [
+                    for (var i = 0; i < question.choices.length; i++) ...[
+                      if (i > 0) const SizedBox(width: AppTokens.space10),
+                      Expanded(
+                        child: StudentChoiceTile(
+                          key: ValueKey('exercise-answer-$i'),
+                          text: question.choices[i],
+                          selected: _selected == i,
+                          correct: question.correctAnswerIndex == i,
+                          enabled: !answered,
+                          onTap: () => _choose(i),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
-              ),
-              if (_selected != null)
-                StudentPanel(
-                  color: _isRight ? StudentColors.mint : StudentColors.peach,
-                  child: Text(
+                ),
+                if (answered) ...[
+                  const SizedBox(height: AppTokens.space12),
+                  Text(
                     _isRight
                         ? question.correctFeedback
                         : 'Tidak apa-apa. ${question.hint}',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.45,
+                      color: _isRight
+                          ? AppTokens.primary
+                          : AppTokens.coralDark,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppTokens.space20),
+                QuestionAudioButton(
+                  key: ValueKey('exercise-audio-$_questionIndex'),
+                  text: question.prompt,
+                  kind: questionSpeechKindForQuestion(
+                    aspect: question.aspect,
+                    questionType: question.type,
                   ),
                 ),
-            ],
-          ),
-        ),
-        if (_selected != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: StudentAction(
-              key: const ValueKey('exercise-next'),
-              label: _questionIndex == _questions.length - 1
-                  ? 'Lihat hasil'
-                  : 'Soal berikutnya',
-              icon: Icons.arrow_forward_rounded,
-              onPressed: _submitCurrentAnswer,
+              ],
             ),
           ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space16,
+            AppTokens.space8,
+            AppTokens.space16,
+            AppTokens.space16,
+          ),
+          child: FilledButton(
+            key: const ValueKey('exercise-next'),
+            onPressed: answered ? _submitCurrentAnswer : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTokens.primary,
+              disabledBackgroundColor: const Color(0xFF9AC7BC),
+              minimumSize: const Size.fromHeight(AppTokens.studentButtonHeight),
+            ),
+            child: Text(
+              _questionIndex == _questions.length - 1
+                  ? 'Lihat hasil'
+                  : 'Soal berikutnya',
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -720,95 +898,215 @@ class _StudentExercisePageState extends State<StudentExercisePage> {
     });
   }
 
-  Widget _result(BuildContext context) => ListView(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-    children: [
-      const StudentPageHeading(
-        title: 'Latihan selesai!',
-        subtitle: 'Kamu sudah berusaha dengan hebat.',
+  Widget _result(BuildContext context) {
+    final attempt = _attempt;
+    final score = attempt?.score ?? 0;
+    final correct = attempt?.answers.where((a) => a.isCorrect).length ?? 0;
+    final total = attempt?.answers.length ?? _questions.length;
+    final stars = score >= 85
+        ? 3
+        : score >= 60
+        ? 2
+        : 1;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space24,
+        AppTokens.space16,
+        AppTokens.space24,
       ),
-      StudentPanel(
-        color: StudentColors.sunshine,
-        child: Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.emoji_events_rounded,
-              size: 64,
-              color: Color(0xFFCC9B27),
-            ),
-            const SizedBox(height: AppTokens.space8),
-            Text(
-              '${_attempt?.score ?? 0}%',
-              style: Theme.of(context).textTheme.displaySmall,
-            ),
-            Text(
-              'Skor latihanmu',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: AppTokens.space8),
-            Text(
-              'Terus berlatih ${aspectLabel(_material!.aspect).toLowerCase()} ya!',
-              textAlign: TextAlign.center,
-            ),
+            for (var i = 0; i < 3; i++)
+              Icon(
+                Icons.star_rounded,
+                size: 30,
+                color: i < stars ? AppTokens.accent : AppTokens.outline,
+              ),
           ],
         ),
-      ),
-      const SizedBox(height: AppTokens.space16),
-      StudentAction(
-        key: const ValueKey('exercise-record-reading'),
-        label: 'Baca dengan suara',
-        icon: Icons.mic_rounded,
-        color: const Color(0xFF4F71A8),
-        onPressed: () => Navigator.pushNamed(
-          context,
-          '/siswa/rekaman',
-          arguments: _material.title,
+        const SizedBox(height: AppTokens.space16),
+        Text(
+          'Hebat, ${StudentDemoStore.instance.studentName.split(' ').first}!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppTokens.text,
+          ),
         ),
-      ),
-      const SizedBox(height: AppTokens.space8),
-      OutlinedButton.icon(
-        key: const ValueKey('exercise-repeat'),
-        onPressed: () => setState(() {
-          if (LearningSession.enabled) _loading = _startRemote();
-          _questionIndex = 0;
-          _correct = 0;
-          _selected = null;
-          _answers.clear();
-          _attempt = null;
-          _startedAt = DateTime.now();
-          _completionToken = '${_startedAt.microsecondsSinceEpoch}-$hashCode';
-          final recommendation = StudentDemoStore.instance.activeRecommendation;
-          _recommendationId =
-              recommendation != null &&
-                  recommendation.materialId == _material.id
-              ? recommendation.id
-              : null;
-          _finished = false;
-        }),
-        icon: const Icon(Icons.refresh_rounded),
-        label: const Text('Coba latihan lagi'),
-      ),
-      TextButton(
-        onPressed: () =>
-            Navigator.pushReplacementNamed(context, '/siswa/latihan'),
-        child: const Text('Pilih latihan lain'),
-      ),
-    ],
-  );
+        const SizedBox(height: AppTokens.space8),
+        Text(
+          'Kamu menyelesaikan latihan ${_material!.title}.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 12.5,
+            color: AppTokens.mutedText,
+          ),
+        ),
+        const SizedBox(height: AppTokens.space20),
+        Container(
+          padding: const EdgeInsets.all(AppTokens.space16),
+          decoration: BoxDecoration(
+            color: AppTokens.primary,
+            borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 76,
+                height: 76,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 76,
+                      height: 76,
+                      child: CircularProgressIndicator(
+                        value: score / 100,
+                        strokeWidth: 6,
+                        backgroundColor: Colors.white24,
+                        color: AppTokens.accent,
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$score%',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Text(
+                          'nilai',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppTokens.space16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTokens.mint,
+                        borderRadius: BorderRadius.circular(
+                          AppTokens.radiusRound,
+                        ),
+                      ),
+                      child: const Text(
+                        'DIKUASAI',
+                        style: TextStyle(
+                          fontSize: 8.5,
+                          letterSpacing: 0.6,
+                          fontWeight: FontWeight.w900,
+                          color: AppTokens.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.space6),
+                    Text(
+                      '$correct dari $total benar',
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Dua latihan bagus lagi dapat membawamu naik tingkat.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.4,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.space16),
+        StudentAction(
+          key: const ValueKey('exercise-see-progress'),
+          label: 'Lihat kemajuanku',
+          icon: Icons.show_chart_rounded,
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, '/siswa/perkembangan'),
+        ),
+        const SizedBox(height: AppTokens.space10),
+        OutlinedButton(
+          key: const ValueKey('exercise-home'),
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, '/siswa'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(AppTokens.studentButtonHeight),
+            side: const BorderSide(color: AppTokens.outline),
+            foregroundColor: AppTokens.primary,
+          ),
+          child: const Text('Kembali ke beranda'),
+        ),
+        Center(
+          child: TextButton(
+            key: const ValueKey('exercise-repeat'),
+            onPressed: () => setState(() {
+              if (LearningSession.enabled) _loading = _startRemote();
+              _questionIndex = 0;
+              _correct = 0;
+              _selected = null;
+              _answers.clear();
+              _attempt = null;
+              _startedAt = DateTime.now();
+              _completionToken =
+                  '${_startedAt.microsecondsSinceEpoch}-$hashCode';
+              final recommendation =
+                  StudentDemoStore.instance.activeRecommendation;
+              _recommendationId =
+                  recommendation != null &&
+                      recommendation.materialId == _material.id
+                  ? recommendation.id
+                  : null;
+              _finished = false;
+            }),
+            child: const Text(
+              'Ulangi latihan',
+              style: TextStyle(fontSize: 12, color: AppTokens.secondary),
+            ),
+          ),
+        ),
+        if (attempt != null) ...[
+          const SizedBox(height: AppTokens.space8),
+          StudentAction(
+            key: const ValueKey('exercise-record-reading'),
+            label: 'Baca dengan suara',
+            icon: Icons.mic_none_rounded,
+            color: AppTokens.secondary,
+            onPressed: () => Navigator.pushNamed(
+              context,
+              '/siswa/rekaman',
+              arguments: _material.title,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
-
-String _aspectGlyph(String aspect) => switch (aspect) {
-  'huruf' => 'Aa',
-  'suku_kata' => 'ba',
-  'kata' => 'Ibu',
-  'kalimat' => 'Aa…',
-  _ => 'ba',
-};
-
-Color _aspectColor(String aspect) => switch (aspect) {
-  'huruf' => const Color(0xFFFFF0D3),
-  'suku_kata' => const Color(0xFFE0F1E9),
-  'kata' => const Color(0xFFE5F0FA),
-  'kalimat' => const Color(0xFFF9E6E0),
-  _ => StudentColors.mint,
-};

@@ -349,44 +349,70 @@ class _QuestionAudioButtonState extends State<QuestionAudioButton> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: IconButton.filled(
+        Material(
+          color: AppTokens.sky,
+          borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+          child: InkWell(
             key: const ValueKey('question-audio-button'),
-            tooltip: active ? 'Hentikan suara soal' : 'Dengarkan soal',
-            onPressed: _toggle,
-            style: IconButton.styleFrom(
-              backgroundColor: active ? AppTokens.secondary : AppTokens.primary,
-              foregroundColor: Colors.white,
-              shape: const CircleBorder(),
-            ),
-            icon: _isStarting
-                ? const SizedBox(
+            onTap: _toggle,
+            borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.space16,
+                vertical: AppTokens.space12,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Icon(
-                    _isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded,
-                    size: 28,
+                    child: _isStarting
+                        ? const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTokens.secondary,
+                          )
+                        : Icon(
+                            _isPlaying
+                                ? Icons.stop_rounded
+                                : Icons.play_arrow_rounded,
+                            size: 24,
+                            color: AppTokens.secondary,
+                          ),
                   ),
-          ),
-        ),
-        if (_isPlaying)
-          const Padding(
-            padding: EdgeInsets.only(top: 4),
-            child: Text(
-              'Sedang dibacakan',
-              style: TextStyle(fontSize: 12, color: AppTokens.secondary),
+                  const SizedBox(width: AppTokens.space12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          active ? 'Sedang dibacakan' : 'Dengarkan dulu',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppTokens.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          active
+                              ? 'Ketuk untuk berhenti'
+                              : 'Ketuk untuk mendengar soal',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppTokens.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+        ),
         if (_isUnavailable)
           const Padding(
-            padding: EdgeInsets.only(top: 4),
+            padding: EdgeInsets.only(top: 6),
             child: Text(
               'Suara bahasa Indonesia tidak tersedia.',
               textAlign: TextAlign.center,

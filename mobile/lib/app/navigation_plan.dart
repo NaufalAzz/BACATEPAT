@@ -167,6 +167,24 @@ abstract final class NavigationPlan {
       group: 'Akun',
       placement: NavigationPlacement.primary,
     ),
+    PlannedScreen(
+      id: 'G18',
+      title: 'Tambah Kelas',
+      path: '/guru/kelas/form',
+      role: AppRole.teacher,
+      group: 'Kelas',
+      placement: NavigationPlacement.detail,
+      parentId: 'G5',
+    ),
+    PlannedScreen(
+      id: 'G19',
+      title: 'Buat Tes Diagnostik',
+      path: '/guru/diagnostik/tambah',
+      role: AppRole.teacher,
+      group: 'Diagnostik',
+      placement: NavigationPlacement.detail,
+      parentId: 'G11',
+    ),
   ];
 
   static const student = <PlannedScreen>[

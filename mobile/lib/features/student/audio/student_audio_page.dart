@@ -385,151 +385,374 @@ class StudentEvaluationPage extends StatelessWidget {
         )
         .toList();
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.space16),
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
       children: [
-        const StudentPageHeading(
-          title: 'Hasil Evaluasi',
-          subtitle: 'Lihat hasil latihan dan saran dari Gurumu.',
+        const StudentSectionLabel('Penilaian guru'),
+        const SizedBox(height: AppTokens.space4),
+        const Text(
+          'Lihat hasil bacaanmu',
+          style: TextStyle(
+            fontSize: 22,
+            height: 1.3,
+            fontWeight: FontWeight.w600,
+            color: AppTokens.text,
+          ),
         ),
-        if (studentState.lastPracticeScore case final score?)
-          Container(
-            padding: const EdgeInsets.all(AppTokens.space16),
-            decoration: BoxDecoration(
-              color: AppTokens.primary,
-              borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hebat, ${studentState.studentName.split(' ').first}!',
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(color: Colors.white),
-                ),
-                const SizedBox(height: AppTokens.space8),
-                Text(
-                  '$score%',
-                  style: Theme.of(context).textTheme.displaySmall
-                      ?.copyWith(color: AppTokens.accent),
-                ),
-                Text(
-                  'Skor latihan ${aspectLabel(studentState.lastPracticeAspect ?? 'kata').toLowerCase()}. Terus berlatih, ya!',
-                  style: Theme.of(context).textTheme.bodyLarge
-                      ?.copyWith(color: Colors.white),
-                ),
-                const SizedBox(height: AppTokens.space12),
-                FilledButton.icon(
-                  key: const ValueKey('evaluation-open-progress'),
-                  onPressed: () => Navigator.pushReplacementNamed(
-                    context,
-                    '/siswa/perkembangan',
-                  ),
-                  icon: const Icon(Icons.trending_up_rounded),
-                  label: const Text('Lihat kemajuanku'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTokens.primaryDark,
-                    minimumSize: const Size(48, AppTokens.studentButtonHeight),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        const SizedBox(height: AppTokens.space4),
+        const Text(
+          'Pesan dari guru untuk membantumu berkembang.',
+          style: TextStyle(fontSize: 12.5, color: AppTokens.mutedText),
+        ),
         const SizedBox(height: AppTokens.space16),
-        Text('Penilaian Guru', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: AppTokens.space8),
-        if (studentState.submittedPracticeRecording)
-          const StudentPanel(
-            color: StudentColors.sky,
-            child: ListTile(
-              leading: Icon(Icons.hourglass_top_rounded),
-              title: Text('Simulasi bacaan terkirim'),
-              subtitle: Text(
-                'Menunggu penilaian Guru. Tidak ada audio tersimpan.',
-              ),
-            ),
-          ),
         if (evaluations.isEmpty && !studentState.submittedPracticeRecording)
           const StudentEmptyState(
-            message: 'Belum ada penilaian. Setelah Guru menilai bacaanmu, hasilnya akan muncul di sini.',
+            message:
+                'Belum ada penilaian. Setelah Guru menilai bacaanmu, hasilnya akan muncul di sini.',
           ),
         for (final evaluation in evaluations)
           Padding(
             padding: const EdgeInsets.only(bottom: AppTokens.space12),
-            child: StudentPanel(
-              color: StudentColors.mint,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: _EvaluationCard(evaluation: evaluation, student: student),
+          ),
+        if (studentState.submittedPracticeRecording)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.space12),
+            child: Container(
+              padding: const EdgeInsets.all(AppTokens.space12),
+              decoration: BoxDecoration(
+                color: AppTokens.sunshine,
+                borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+                border: Border.all(color: const Color(0xFFEBD78D)),
+              ),
+              child: const Row(
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.emoji_events_rounded,
-                        color: Color(0xFFCC9B27),
-                      ),
-                      const SizedBox(width: AppTokens.space8),
-                      Expanded(
-                        child: Text(
-                          'Hasil membaca ${aspectLabel(evaluation.aspect).toLowerCase()}',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.hourglass_top_rounded,
+                    size: 18,
+                    color: AppTokens.warning,
                   ),
-                  const SizedBox(height: AppTokens.space12),
-                  _scoreLine(
-                    context,
-                    'Ketepatan',
-                    evaluation.accuracyScore ?? 0,
-                  ),
-                  _scoreLine(
-                    context,
-                    'Kelancaran',
-                    evaluation.fluencyScore ?? 0,
-                  ),
-                  const Divider(height: AppTokens.space24),
-                  Text(
-                    'Pesan Guru',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  Text(evaluation.comment),
-                  const SizedBox(height: AppTokens.space8),
-                  Text(
-                    'Saran latihan',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  Text(evaluation.advice),
-                  if (evaluation.aiAllowed &&
-                      evaluation.aiConsent &&
-                      student.aiConsent &&
-                      student.parentConsent) ...[
-                    const SizedBox(height: AppTokens.space12),
-                    Container(
-                      padding: const EdgeInsets.all(AppTokens.space12),
-                      decoration: BoxDecoration(
-                        color: StudentColors.sunshine,
-                        borderRadius: BorderRadius.circular(
-                          AppTokens.radiusSmall,
-                        ),
-                      ),
-                      child: Text(
-                        'Indikasi otomatis (bukan nilai resmi): kemiripan simulasi ${evaluation.simulatedAiSimilarity}%. Nilai dan keputusan akhir tetap dari Guru.',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                  SizedBox(width: AppTokens.space10),
+                  Expanded(
+                    child: Text(
+                      'Simulasi bacaan terkirim. Menunggu penilaian Guru. Tidak ada audio tersimpan.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: AppTokens.warning,
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
           ),
-        if (evaluations.isEmpty && studentState.submittedPracticeRecording)
-          const Padding(
-            padding: EdgeInsets.only(top: AppTokens.space12),
-            child: Text(
-              'Hasil Guru akan terlihat di halaman ini setelah penilaian tersedia.',
+        if (studentState.lastPracticeScore case final score?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.space12),
+            child: Container(
+              padding: const EdgeInsets.all(AppTokens.space14),
+              decoration: BoxDecoration(
+                color: AppTokens.surface,
+                borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+                border: Border.all(color: AppTokens.outline),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppTokens.mint,
+                      borderRadius: BorderRadius.circular(
+                        AppTokens.radiusSmall,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.auto_stories_outlined,
+                      size: 19,
+                      color: AppTokens.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppTokens.space12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Latihan terakhirmu',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppTokens.text,
+                          ),
+                        ),
+                        Text(
+                          'Skor latihan ${aspectLabel(studentState.lastPracticeAspect ?? 'kata').toLowerCase()}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppTokens.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '$score',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTokens.text,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppTokens.mutedText,
+                  ),
+                ],
+              ),
             ),
           ),
+        Container(
+          padding: const EdgeInsets.all(AppTokens.space12),
+          decoration: BoxDecoration(
+            color: AppTokens.sunshine,
+            borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+            border: Border.all(color: const Color(0xFFEBD78D)),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.auto_awesome_outlined,
+                size: 18,
+                color: AppTokens.warning,
+              ),
+              SizedBox(width: AppTokens.space10),
+              Expanded(
+                child: Text(
+                  'Nilai ini berasal dari Guru dan latihan objektif, bukan keputusan AI.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: AppTokens.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Center(
+          child: TextButton(
+            key: const ValueKey('evaluation-open-progress'),
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, '/siswa/perkembangan'),
+            child: const Text(
+              'Lihat kemajuanku',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTokens.secondary,
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _EvaluationCard extends StatelessWidget {
+  const _EvaluationCard({required this.evaluation, required this.student});
+
+  final DemoRecording evaluation;
+  final DemoStudent student;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = ((evaluation.accuracyScore ?? 0) +
+            (evaluation.fluencyScore ?? 0)) /
+        2;
+    final mastered = score >= 80;
+    final title = 'Hasil membaca ${aspectLabel(evaluation.aspect).toLowerCase()}';
+    return Material(
+      color: AppTokens.surface,
+      borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+      child: InkWell(
+        onTap: () => _showDetail(context),
+        borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+        child: Container(
+          padding: const EdgeInsets.all(AppTokens.space14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+            border: Border.all(color: AppTokens.outline),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: mastered ? AppTokens.mint : AppTokens.sunshine,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+                ),
+                child: Icon(
+                  Icons.menu_book_outlined,
+                  size: 19,
+                  color: mastered ? AppTokens.primary : AppTokens.warning,
+                ),
+              ),
+              const SizedBox(width: AppTokens.space12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTokens.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Dinilai ${TeacherDemoStore.instance.teacherName}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppTokens.mutedText,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: mastered
+                            ? AppTokens.mint
+                            : AppTokens.sunshine,
+                        borderRadius: BorderRadius.circular(
+                          AppTokens.radiusRound,
+                        ),
+                      ),
+                      child: Text(
+                        mastered ? 'Dikuasai' : 'Terus berlatih',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: mastered
+                              ? AppTokens.primary
+                              : AppTokens.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${score.round()}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.text,
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppTokens.mutedText,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDetail(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTokens.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTokens.radiusXLarge),
+        ),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.space20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hasil membaca ${aspectLabel(evaluation.aspect).toLowerCase()}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.text,
+                ),
+              ),
+              const SizedBox(height: AppTokens.space16),
+              _scoreLine(
+                sheetContext,
+                'Ketepatan',
+                evaluation.accuracyScore ?? 0,
+              ),
+              _scoreLine(
+                sheetContext,
+                'Kelancaran',
+                evaluation.fluencyScore ?? 0,
+              ),
+              const Divider(height: AppTokens.space24),
+              const StudentSectionLabel('Pesan guru'),
+              const SizedBox(height: 4),
+              Text(
+                evaluation.comment,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppTokens.text,
+                ),
+              ),
+              const SizedBox(height: AppTokens.space12),
+              const StudentSectionLabel('Saran latihan'),
+              const SizedBox(height: 4),
+              Text(
+                evaluation.advice,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppTokens.text,
+                ),
+              ),
+              if (evaluation.aiAllowed &&
+                  evaluation.aiConsent &&
+                  student.aiConsent &&
+                  student.parentConsent) ...[
+                const SizedBox(height: AppTokens.space12),
+                Text(
+                  'Indikasi otomatis (bukan nilai resmi): kemiripan simulasi ${evaluation.simulatedAiSimilarity}%. Nilai dan keputusan akhir tetap dari Guru.',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    color: AppTokens.mutedText,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -538,9 +761,19 @@ class StudentEvaluationPage extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: AppTokens.text),
+          ),
         ),
-        Text('$score / 100', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          '$score / 100',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppTokens.text,
+          ),
+        ),
       ],
     ),
   );
@@ -553,70 +786,100 @@ class StudentProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StudentDemoStore.instance;
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.space16),
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space24,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
       children: [
-        const StudentPageHeading(
-          title: 'Profil Saya',
-          subtitle: 'Ini informasi akun belajarmu.',
+        Center(
+          child: CircleAvatar(
+            radius: 44,
+            backgroundColor: const Color(0xFFFBE7B5),
+            child: Text(
+              store.student.name.characters.first.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppTokens.text,
+              ),
+            ),
+          ),
         ),
+        const SizedBox(height: AppTokens.space12),
+        Text(
+          store.student.name,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppTokens.text,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Kelas ${store.className} · SD Pelita Bangsa',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, color: AppTokens.mutedText),
+        ),
+        const SizedBox(height: AppTokens.space20),
         StudentPanel(
-          color: StudentColors.sunshine,
+          padding: EdgeInsets.zero,
           child: Column(
             children: [
-              const CircleAvatar(
-                radius: 42,
-                backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.face_rounded,
-                  size: 54,
-                  color: AppTokens.primary,
-                ),
-              ),
-              const SizedBox(height: AppTokens.space12),
-              Text(
-                store.student.name,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              Text(
-                'Kelas ${store.className}',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const Divider(height: 26),
               _ProfileLine(
+                icon: Icons.person_outline_rounded,
+                tint: AppTokens.mint,
                 label: 'Nama pengguna',
                 value: store.student.username,
               ),
+              const Divider(height: 1, color: AppTokens.outline),
               _ProfileLine(
-                label: 'Wali kelas',
+                icon: Icons.school_outlined,
+                tint: AppTokens.sky,
+                label: 'Guru kelas',
                 value: TeacherDemoStore.instance.teacherName,
               ),
+              const Divider(height: 1, color: AppTokens.outline),
               _ProfileLine(
-                label: 'Izin rekaman suara',
+                icon: Icons.lock_outline_rounded,
+                tint: AppTokens.sunshine,
+                label: 'Rekaman suara',
                 value: store.student.parentConsent
-                    ? 'Diizinkan'
+                    ? 'Diizinkan wali'
                     : 'Belum diizinkan',
               ),
             ],
           ),
         ),
-        const SizedBox(height: AppTokens.space16),
+        const SizedBox(height: AppTokens.space12),
         StudentPanel(
+          padding: EdgeInsets.zero,
           child: SwitchListTile(
             key: const ValueKey('student-larger-text'),
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.space14,
+              vertical: 2,
+            ),
             value: store.largerText,
             onChanged: (_) => store.toggleLargerText(),
-            title: const Text('Huruf lebih besar'),
-            subtitle: const Text('Buat tulisan lebih mudah dibaca.'),
-            secondary: const Icon(Icons.text_fields_rounded),
+            title: const Text(
+              'Huruf lebih besar',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Buat tulisan lebih mudah dibaca.',
+              style: TextStyle(fontSize: 11.5, color: AppTokens.mutedText),
+            ),
+            secondary: const Icon(
+              Icons.text_fields_rounded,
+              size: 20,
+              color: AppTokens.primary,
+            ),
           ),
         ),
         const SizedBox(height: AppTokens.space16),
-        const StudentPanel(
-          color: StudentColors.sky,
-          child: Text('Terus semangat membaca setiap hari! ⭐'),
-        ),
-        const SizedBox(height: 12),
         OutlinedButton.icon(
           key: const ValueKey('student-logout'),
           onPressed: () async {
@@ -641,11 +904,15 @@ class StudentProfilePage extends StatelessWidget {
               (_) => false,
             );
           },
-          icon: const Icon(Icons.logout_rounded),
+          icon: const Icon(Icons.logout_rounded, size: 18),
           label: const Text('Keluar'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppTokens.coralDark,
-            side: const BorderSide(color: AppTokens.coralDark),
+            minimumSize: const Size.fromHeight(AppTokens.studentButtonHeight),
+            foregroundColor: AppTokens.primary,
+            side: const BorderSide(color: AppTokens.outline),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+            ),
           ),
         ),
       ],
@@ -654,29 +921,54 @@ class StudentProfilePage extends StatelessWidget {
 }
 
 class _ProfileLine extends StatelessWidget {
-  const _ProfileLine({required this.label, required this.value});
+  const _ProfileLine({
+    required this.icon,
+    required this.tint,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final Color tint;
   final String label;
   final String value;
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
+    padding: const EdgeInsets.all(AppTokens.space14),
     child: Row(
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: AppTokens.mutedText),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: tint,
+            borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
           ),
+          child: Icon(icon, size: 18, color: AppTokens.text),
         ),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTokens.text,
-              fontWeight: FontWeight.w700,
-            ),
+        const SizedBox(width: AppTokens.space12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: AppTokens.mutedText,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.text,
+                ),
+              ),
+            ],
           ),
         ),
       ],

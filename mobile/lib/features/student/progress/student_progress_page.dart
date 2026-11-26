@@ -39,351 +39,87 @@ class _StudentProgressPageState extends State<StudentProgressPage> {
     final store = StudentDemoStore.instance;
     final latestMastery = store.latestMasteryByAspect;
     final diagnosticScores = store.diagnosticScores;
-    final diagnosticScore = diagnosticScores[_aspect];
-    final history = store.activities.where((item) => item.aspect == _aspect);
     final masteryHistory =
         store.masteryHistory.where((item) => item.aspect == _aspect).toList()
-          ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    final chartRecords = masteryHistory.reversed.toList(growable: false);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        const StudentPageHeading(
-          title: 'Perkembangan Saya',
-          subtitle: 'Lihat langkah hebat yang sudah kamu capai.',
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final aspect in _aspects)
-                Padding(
-                  padding: const EdgeInsets.only(right: 7),
-                  child: ChoiceChip(
-                    key: ValueKey('progress-aspect-$aspect'),
-                    label: Text(aspectLabel(aspect)),
-                    selected: _aspect == aspect,
-                    onSelected: (_) => setState(() => _aspect = aspect),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        StudentPanel(
-          color: StudentColors.sunshine,
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.local_fire_department_rounded,
-                size: 36,
-                color: Color(0xFFD79E22),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Terus semangat membaca!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppTokens.text,
-                      ),
-                    ),
-                    Text(
-                      '${store.activities.length} latihan sudah selesai',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTokens.mutedText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${store.activities.length}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: AppTokens.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        StudentPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Langkah membacamu',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              for (var i = 0; i < _aspects.length; i++)
-                _LearningStep(
-                  aspect: _aspects[i],
-                  mastery: latestMastery[_aspects[i]],
-                  last: i == _aspects.length - 1,
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        StudentPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hasil tes diagnostik',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                'Skor dari diagnostik terakhir, terpisah dari hasil latihan.',
-                style: TextStyle(fontSize: 11, color: AppTokens.mutedText),
-              ),
-              const SizedBox(height: 10),
-              if (diagnosticScores.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    'Belum ada hasil diagnostik. Selesaikan tes membaca bersama Gurumu untuk melihat hasilnya.',
-                  ),
-                )
-              else if (_aspects.any(
-                (aspect) => !diagnosticScores.containsKey(aspect),
-              )) ...[
-                for (final aspect in _aspects)
-                  if (diagnosticScores.containsKey(aspect))
-                    ListTile(
-                      key: ValueKey('diagnostic-score-$aspect'),
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(aspectLabel(aspect)),
-                      trailing: Text('${diagnosticScores[aspect]}%'),
-                    ),
-              ] else ...[
-                SizedBox(
-                  height: 156,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    key: const ValueKey('student-progress-chart'),
-                    painter: _StudentChartPainter(
-                      scores: _aspects
-                          .map((aspect) => diagnosticScores[aspect]!)
-                          .toList(),
-                      labels: const ['Huruf', 'Suku kata', 'Kata', 'Kalimat'],
-                    ),
-                  ),
-                ),
-                Center(
-                  child: Text(
-                    diagnosticScore == null
-                        ? 'Belum ada skor diagnostik untuk ${aspectLabel(_aspect)}'
-                        : '${aspectLabel(_aspect)}: $diagnosticScore% (${_statusForScore(diagnosticScore)})',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTokens.mutedText,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        StudentPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Perkembangan ${aspectLabel(_aspect)}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                'Riwayat penguasaan dari tes diagnostik dan latihan.',
-                style: TextStyle(fontSize: 11, color: AppTokens.mutedText),
-              ),
-              const SizedBox(height: 10),
-              if (chartRecords.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text('Belum ada riwayat untuk aspek ini.'),
-                )
-              else
-                MasteryHistoryChart(
-                  chartKey: const ValueKey('student-mastery-history-chart'),
-                  points: [
-                    for (final record in chartRecords)
-                      MasteryPoint(
-                        recordedAt: record.recordedAt,
-                        score: record.score,
-                      ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        StudentPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Riwayat latihan',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              if (history.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text('Mulai berlatih untuk melihat kemajuanmu.'),
-                )
-              else
-                for (final activity in history.take(4))
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.check_circle_outline_rounded,
-                      color: AppTokens.success,
-                    ),
-                    title: Text(activity.title),
-                    trailing: Text('${activity.score}%'),
-                  ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        StudentPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Riwayat penguasaan',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              if (masteryHistory.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Belum ada perubahan penguasaan untuk aspek ini.',
-                  ),
-                )
-              else
-                for (final record in masteryHistory.take(6))
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('${record.score}% · ${_status(record.status)}'),
-                    subtitle: Text(
-                      '${record.source == 'diagnostik' ? 'Tes diagnostik' : 'Latihan'} · ${_formatDate(record.recordedAt)}',
-                    ),
-                    trailing: Text('Tingkat ${record.level}'),
-                  ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _status(String status) => switch (status) {
-    'belum_dikuasai' => 'Belum dikuasai',
-    'sedang_berlatih' => 'Sedang berlatih',
-    'dikuasai' => 'Dikuasai',
-    _ => 'Belum dinilai',
-  };
-
-  String _statusForScore(int score) => _status(
-    score < 60
-        ? 'belum_dikuasai'
-        : score < 80
-        ? 'sedang_berlatih'
-        : 'dikuasai',
-  );
-
-  String _formatDate(DateTime value) =>
-      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
-}
-
-class _LearningStep extends StatelessWidget {
-  const _LearningStep({
-    required this.aspect,
-    required this.mastery,
-    required this.last,
-  });
-  final String aspect;
-  final MasteryRecord? mastery;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final score = mastery?.score;
-    final status = mastery?.status;
-    return SizedBox(
-      height: 43,
-      child: Row(
+          ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            width: 22,
-            child: Column(
+          _StreakBanner(
+            streak: _streakDays(store.activities),
+            total: store.activities.length,
+          ),
+          const SizedBox(height: AppTokens.space16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                Container(
-                  width: 17,
-                  height: 17,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: (score ?? 0) >= 60
-                        ? AppTokens.primary
-                        : Colors.white,
-                    border: Border.all(
-                      color: (score ?? 0) >= 60
-                          ? AppTokens.primary
-                          : const Color(0xFFC8D7D2),
-                      width: 2,
+                for (final aspect in _aspects)
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppTokens.space8),
+                    child: StudentChip(
+                      key: ValueKey('progress-aspect-$aspect'),
+                      label: aspectLabel(aspect),
+                      selected: _aspect == aspect,
+                      onTap: () => setState(() => _aspect = aspect),
                     ),
-                  ),
-                  child: (score ?? 0) >= 60
-                      ? const Icon(Icons.check, size: 11, color: Colors.white)
-                      : null,
-                ),
-                if (!last)
-                  Expanded(
-                    child: Container(width: 2, color: const Color(0xFFD9E5E1)),
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              aspectLabel(aspect),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: (score ?? 0) >= 60
-                    ? AppTokens.text
-                    : AppTokens.mutedText,
-              ),
+          const SizedBox(height: AppTokens.space16),
+          _LevelCard(mastery: latestMastery[_aspect], aspect: _aspect),
+          const SizedBox(height: AppTokens.space16),
+          _DiagnosticScoresPanel(
+            scores: diagnosticScores,
+            aspects: _aspects,
+            selectedAspect: _aspect,
+          ),
+          _WeeklyChartCard(records: masteryHistory, aspect: _aspect),
+          const SizedBox(height: AppTokens.space16),
+          StudentPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StudentSectionLabel('Perkembangan ${aspectLabel(_aspect)}'),
+                const SizedBox(height: AppTokens.space8),
+                if (masteryHistory.isEmpty)
+                  const Text(
+                    'Belum ada riwayat untuk aspek ini.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppTokens.mutedText,
+                    ),
+                  )
+                else
+                  MasteryHistoryChart(
+                    chartKey: const ValueKey('student-mastery-history-chart'),
+                    points: [
+                      for (final record in masteryHistory)
+                        MasteryPoint(
+                          recordedAt: record.recordedAt,
+                          score: record.score,
+                        ),
+                    ],
+                  ),
+              ],
             ),
           ),
-          Text(
-            status == null
-                ? 'Belum dinilai'
-                : status == 'dikuasai'
-                ? 'Dikuasai'
-                : status == 'sedang_berlatih'
-                ? 'Sedang berlatih'
-                : 'Belum dikuasai',
-            style: const TextStyle(fontSize: 10, color: AppTokens.mutedText),
+          const SizedBox(height: AppTokens.space16),
+          const SizedBox(height: AppTokens.space16),
+          _HistoryPanel(records: masteryHistory.reversed.toList()),
+          const SizedBox(height: AppTokens.space16),
+          _ActivityHistoryPanel(
+            history: store.activities
+                .where((item) => item.aspect == _aspect)
+                .toList(),
           ),
         ],
       ),
@@ -391,66 +127,521 @@ class _LearningStep extends StatelessWidget {
   }
 }
 
-class _StudentChartPainter extends CustomPainter {
-  const _StudentChartPainter({required this.scores, required this.labels});
-  final List<int> scores;
-  final List<String> labels;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const left = 26.0;
-    const top = 7.0;
-    final chartHeight = size.height - 27;
-    final chartWidth = size.width - left - 5;
-    final grid = Paint()
-      ..color = AppTokens.outline
-      ..strokeWidth = 1;
-    for (var i = 0; i <= 4; i++) {
-      final y = top + chartHeight * i / 4;
-      canvas.drawLine(Offset(left, y), Offset(size.width, y), grid);
-      final label = TextPainter(
-        text: TextSpan(
-          text: '${100 - i * 25}',
-          style: const TextStyle(fontSize: 9, color: AppTokens.mutedText),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      label.paint(canvas, Offset(0, y - 5));
-    }
-    final slotWidth = chartWidth / scores.length;
-    final bar = Paint()..color = AppTokens.primary;
-    for (var i = 0; i < scores.length; i++) {
-      final barHeight = chartHeight * scores[i].clamp(0, 100) / 100;
-      final x = left + slotWidth * i + slotWidth * .26;
-      final y = top + chartHeight - barHeight;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, y, slotWidth * .48, barHeight),
-          const Radius.circular(4),
-        ),
-        bar,
-      );
-      final label = TextPainter(
-        text: TextSpan(
-          text: labels[i],
-          style: const TextStyle(fontSize: 8, color: AppTokens.mutedText),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: 'â€¦',
-      )..layout(maxWidth: slotWidth);
-      label.paint(
-        canvas,
-        Offset(
-          left + slotWidth * i + (slotWidth - label.width) / 2,
-          size.height - 13,
-        ),
-      );
-    }
+int _streakDays(List<StudentActivity> activities) {
+  final days =
+      activities
+          .map(
+            (item) => DateTime(
+              item.finishedAt.year,
+              item.finishedAt.month,
+              item.finishedAt.day,
+            ),
+          )
+          .toSet()
+          .toList()
+        ..sort((a, b) => b.compareTo(a));
+  if (days.isEmpty) return 0;
+  var streak = 1;
+  for (var i = 1; i < days.length; i++) {
+    if (days[i - 1].difference(days[i]).inDays != 1) break;
+    streak++;
   }
+  return streak;
+}
+
+class _StreakBanner extends StatelessWidget {
+  const _StreakBanner({required this.streak, required this.total});
+
+  final int streak;
+  final int total;
 
   @override
-  bool shouldRepaint(covariant _StudentChartPainter oldDelegate) =>
-      scores.join(',') != oldDelegate.scores.join(',') ||
-      labels.join(',') != oldDelegate.labels.join(',');
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppTokens.space20),
+    decoration: BoxDecoration(
+      color: AppTokens.sunshine,
+      borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+    ),
+    child: Row(
+      children: [
+        Text(
+          '$streak',
+          style: const TextStyle(
+            fontSize: 38,
+            height: 1.1,
+            fontWeight: FontWeight.w800,
+            color: AppTokens.warning,
+          ),
+        ),
+        const SizedBox(width: AppTokens.space16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'hari beruntun',
+                style: TextStyle(fontSize: 11.5, color: AppTokens.mutedText),
+              ),
+              const Text(
+                'Terus bertumbuh!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.text,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Kamu sudah membaca $total kali.',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: AppTokens.mutedText,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
+
+class _LevelCard extends StatelessWidget {
+  const _LevelCard({required this.mastery, required this.aspect});
+
+  final MasteryRecord? mastery;
+  final String aspect;
+
+  String get _status => switch (mastery?.status) {
+    'dikuasai' => 'Dikuasai',
+    'sedang_berlatih' => 'Sedang berlatih',
+    _ => 'Belum dikuasai',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final level = (mastery?.level ?? 1).clamp(1, 4);
+    final score = mastery?.score ?? 0;
+    return StudentPanel(
+      padding: const EdgeInsets.all(AppTokens.space20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          StudentSectionLabel(
+            'Kemajuan ${aspectLabel(aspect)}',
+            color: AppTokens.primary,
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _status,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppTokens.text,
+                  ),
+                ),
+              ),
+              Text(
+                '$score%',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.text,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.space20),
+          Row(
+            children: [
+              for (var step = 1; step <= 4; step++) ...[
+                if (step > 1)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: step <= level
+                          ? AppTokens.primary.withValues(alpha: .35)
+                          : AppTokens.outline,
+                    ),
+                  ),
+                _StepDot(step: step, level: level),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppTokens.space16),
+          Center(
+            child: Text(
+              level >= 4
+                  ? 'Kamu sudah di tingkat tertinggi!'
+                  : 'Tinggal sedikit lagi untuk naik tingkat!',
+              style: const TextStyle(fontSize: 12, color: AppTokens.mutedText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  const _StepDot({required this.step, required this.level});
+
+  final int step;
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = step < level;
+    final current = step == level;
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done
+            ? AppTokens.primary
+            : current
+            ? AppTokens.accent
+            : AppTokens.surface,
+        border: Border.all(
+          color: done
+              ? AppTokens.primary
+              : current
+              ? AppTokens.accent
+              : AppTokens.outline,
+        ),
+      ),
+      child: done
+          ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
+          : Text(
+              '$step',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: current ? AppTokens.text : AppTokens.mutedText,
+              ),
+            ),
+    );
+  }
+}
+
+class _WeeklyChartCard extends StatelessWidget {
+  const _WeeklyChartCard({required this.records, required this.aspect});
+
+  final List<MasteryRecord> records;
+  final String aspect;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekly = _weeklyScores(records);
+    if (weekly.isEmpty) {
+      return StudentPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '4 minggu terakhir',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppTokens.text,
+              ),
+            ),
+            const SizedBox(height: AppTokens.space12),
+            const StudentEmptyState(
+              message: 'Belum ada data kemajuan untuk aspek ini.',
+              icon: Icons.show_chart_outlined,
+            ),
+          ],
+        ),
+      );
+    }
+    return StudentPanel(
+      padding: const EdgeInsets.all(AppTokens.space16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '4 minggu terakhir',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: AppTokens.text,
+            ),
+          ),
+          const SizedBox(height: AppTokens.space16),
+          SizedBox(
+            key: const ValueKey('student-progress-chart'),
+            height: 120,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (var i = 0; i < weekly.length; i++)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (i == weekly.length - 1)
+                            Text(
+                              '${weekly[i].score}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppTokens.text,
+                              ),
+                            ),
+                          const SizedBox(height: 2),
+                          Container(
+                            height: 90 * weekly[i].score / 100,
+                            decoration: BoxDecoration(
+                              color: i == weekly.length - 1
+                                  ? AppTokens.primary
+                                  : const Color(0xFFDCE8EC),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTokens.space8),
+          Row(
+            children: [
+              Text(
+                _shortDate(weekly.first.date),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: AppTokens.mutedText,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _shortDate(weekly.last.date),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: AppTokens.mutedText,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<({DateTime date, int score})> _weeklyScores(List<MasteryRecord> records) {
+  if (records.isEmpty) return const [];
+  final latest = records.last.recordedAt;
+  final buckets = <int, List<int>>{};
+  for (final record in records) {
+    final weeksAgo = latest.difference(record.recordedAt).inDays ~/ 7;
+    if (weeksAgo > 4) continue;
+    buckets.putIfAbsent(4 - weeksAgo, () => []).add(record.score);
+  }
+  return [
+    for (final entry in buckets.entries)
+      (
+        date: latest.subtract(Duration(days: (4 - entry.key) * 7)),
+        score: (entry.value.reduce((a, b) => a + b) / entry.value.length)
+            .round(),
+      ),
+  ];
+}
+
+const _months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+];
+
+String _shortDate(DateTime date) => '${date.day} ${_months[date.month - 1]}';
+
+class _DiagnosticScoresPanel extends StatelessWidget {
+  const _DiagnosticScoresPanel({
+    required this.scores,
+    required this.aspects,
+    required this.selectedAspect,
+  });
+
+  final Map<String, int> scores;
+  final List<String> aspects;
+  final String selectedAspect;
+
+  @override
+  Widget build(BuildContext context) => StudentPanel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const StudentSectionLabel('Hasil tes diagnostik'),
+        const SizedBox(height: AppTokens.space8),
+        if (scores.isEmpty)
+          const Text(
+            'Belum ada hasil diagnostik. Selesaikan tes membaca bersama Gurumu.',
+            style: TextStyle(fontSize: 12.5, color: AppTokens.mutedText),
+          )
+        else
+          for (final aspect in aspects)
+            if (scores.containsKey(aspect))
+              StudentProgressBar(
+                label: aspectLabel(aspect),
+                value: scores[aspect]!,
+              ),
+        const SizedBox(height: AppTokens.space8),
+        Text(
+          '${aspectLabel(selectedAspect)}: ${scores[selectedAspect] ?? 0}%',
+          style: const TextStyle(fontSize: 11.5, color: AppTokens.mutedText),
+        ),
+      ],
+    ),
+  );
+}
+
+class _HistoryPanel extends StatelessWidget {
+  const _HistoryPanel({required this.records});
+
+  final List<MasteryRecord> records;
+
+  @override
+  Widget build(BuildContext context) => StudentPanel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const StudentSectionLabel('Riwayat penguasaan'),
+        const SizedBox(height: AppTokens.space8),
+        if (records.isEmpty)
+          const Text(
+            'Belum ada perubahan penguasaan untuk aspek ini.',
+            style: TextStyle(fontSize: 12.5, color: AppTokens.mutedText),
+          )
+        else
+          for (final record in records.take(6))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTokens.space8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${record.score}% · ${_statusLabel(record.status)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTokens.text,
+                          ),
+                        ),
+                        Text(
+                          '${record.source == 'diagnostik' ? 'Tes diagnostik' : 'Latihan'} · ${_shortDate(record.recordedAt)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppTokens.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    'Tingkat ${record.level}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppTokens.mutedText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      ],
+    ),
+  );
+}
+
+class _ActivityHistoryPanel extends StatelessWidget {
+  const _ActivityHistoryPanel({required this.history});
+
+  final List<StudentActivity> history;
+
+  @override
+  Widget build(BuildContext context) => StudentPanel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const StudentSectionLabel('Riwayat latihan'),
+        const SizedBox(height: AppTokens.space8),
+        if (history.isEmpty)
+          const Text(
+            'Mulai berlatih untuk melihat kemajuanmu.',
+            style: TextStyle(fontSize: 12.5, color: AppTokens.mutedText),
+          )
+        else
+          for (final activity in history.take(4))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTokens.space8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activity.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTokens.text,
+                          ),
+                        ),
+                        Text(
+                          '${aspectLabel(activity.aspect)} · ${_shortDate(activity.finishedAt)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppTokens.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${activity.score}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppTokens.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      ],
+    ),
+  );
+}
+
+String _statusLabel(String status) => switch (status) {
+  'dikuasai' => 'Dikuasai',
+  'sedang_berlatih' => 'Sedang berlatih',
+  _ => 'Belum dikuasai',
+};

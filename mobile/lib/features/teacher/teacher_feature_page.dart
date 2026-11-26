@@ -58,6 +58,10 @@ class TeacherPageBody extends StatelessWidget {
       'G15' => const ProgressPage(),
       'G16' => const ReportsPage(),
       'G17' => const ProfilePage(),
+      'G18' => ClassFormPage(
+        classId: arguments is int ? arguments as int : null,
+      ),
+      'G19' => const DiagnosticBuilderPage(),
       _ => const Center(child: Text('Halaman Guru tidak ditemukan.')),
     },
   );

@@ -42,132 +42,137 @@ class _ProgressPageState extends State<ProgressPage> {
         ? 'Rata-rata kelas'
         : store.studentById(_studentId!)?.name ?? 'Siswa';
 
-    return ListView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTokens.space16),
-      children: [
-        const TeacherPageHeading(
-          title: 'Grafik Perkembangan',
-          subtitle: 'Pantau perubahan penguasaan dari diagnostik dan latihan.',
-        ),
-        Wrap(
-          spacing: AppTokens.space12,
-          runSpacing: AppTokens.space12,
-          children: [
-            SizedBox(
-              width: 250,
-              child: DropdownButtonFormField<int?>(
-                isExpanded: true,
-                initialValue: _studentId,
-                decoration: const InputDecoration(
-                  labelText: 'Siswa atau kelas',
-                ),
-                items: [
-                  const DropdownMenuItem<int?>(
-                    value: null,
-                    child: Text('Rata-rata kelas'),
-                  ),
-                  for (final student in store.activeStudents)
-                    DropdownMenuItem<int?>(
-                      value: student.id,
-                      child: Text(student.name),
-                    ),
-                ],
-                onChanged: (value) => setState(() => _studentId = value),
-              ),
-            ),
-            SizedBox(
-              width: 190,
-              child: DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: _aspect,
-                decoration: const InputDecoration(labelText: 'Aspek'),
-                items: const [
-                  DropdownMenuItem(value: 'huruf', child: Text('Huruf')),
-                  DropdownMenuItem(
-                    value: 'suku_kata',
-                    child: Text('Suku kata'),
-                  ),
-                  DropdownMenuItem(value: 'kata', child: Text('Kata')),
-                  DropdownMenuItem(
-                    value: 'kalimat',
-                    child: Text('Kalimat sederhana'),
-                  ),
-                ],
-                onChanged: (value) =>
-                    setState(() => _aspect = value ?? _aspect),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTokens.space16),
-        TeacherPanel(
-          title: 'Tren ${aspectLabel(_aspect)}',
-          child: chartPoints.isEmpty
-              ? const EmptyState(
-                  message: 'Belum ada riwayat untuk ditampilkan pada grafik.',
-                )
-              : MasteryHistoryChart(
-                  chartKey: const ValueKey('teacher-mastery-history-chart'),
-                  points: chartPoints,
-                ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        TeacherPanel(
-          title: '$title · ${aspectLabel(_aspect)}',
-          child: latestByStudent.isEmpty
-              ? const EmptyState(
-                  message: 'Belum ada catatan penguasaan untuk pilihan ini.',
-                )
-              : Column(
-                  children: [
-                    for (final record in latestByStudent.values)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          _studentId == null
-                              ? store.studentById(record.studentId)?.name ??
-                                    'Siswa'
-                              : _masteryStatus(record.status),
-                        ),
-                        subtitle: LinearProgressIndicator(
-                          value: record.score / 100,
-                          minHeight: 7,
-                        ),
-                        trailing: Text('${record.score}%'),
-                      ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        TeacherPanel(
-          title: 'Riwayat ${aspectLabel(_aspect)}',
-          child: records.isEmpty
-              ? const EmptyState(
-                  message: 'Belum ada riwayat penguasaan untuk pilihan ini.',
-                )
-              : Column(
-                  children: [
-                    for (final record in records)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          '${store.studentById(record.studentId)?.name ?? 'Siswa'} · ${_masteryStatus(record.status)}',
-                        ),
-                        subtitle: Text(
-                          '${record.source == 'diagnostik' ? 'Diagnostik' : 'Latihan'} · Tingkat ${record.level} · ${_formatDate(record.recordedAt)}\n${record.reason}',
-                        ),
-                        trailing: Text('${record.score}%'),
-                      ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: AppTokens.space16),
-        const TeacherPanel(
-          child: Text(
-            'Grafik dan riwayat memakai catatan penguasaan aktual. Catatan lama tetap tersimpan saat hasil baru masuk.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const TeacherPageHeading(
+            section: 'Grafik Perkembangan',
+            title: 'Perkembangan siswa',
+            subtitle:
+                'Pantau perubahan penguasaan dari diagnostik dan latihan.',
           ),
-        ),
-      ],
+          Wrap(
+            spacing: AppTokens.space12,
+            runSpacing: AppTokens.space12,
+            children: [
+              SizedBox(
+                width: 250,
+                child: DropdownButtonFormField<int?>(
+                  isExpanded: true,
+                  initialValue: _studentId,
+                  decoration: const InputDecoration(
+                    labelText: 'Siswa atau kelas',
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('Rata-rata kelas'),
+                    ),
+                    for (final student in store.activeStudents)
+                      DropdownMenuItem<int?>(
+                        value: student.id,
+                        child: Text(student.name),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() => _studentId = value),
+                ),
+              ),
+              SizedBox(
+                width: 190,
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _aspect,
+                  decoration: const InputDecoration(labelText: 'Aspek'),
+                  items: const [
+                    DropdownMenuItem(value: 'huruf', child: Text('Huruf')),
+                    DropdownMenuItem(
+                      value: 'suku_kata',
+                      child: Text('Suku kata'),
+                    ),
+                    DropdownMenuItem(value: 'kata', child: Text('Kata')),
+                    DropdownMenuItem(
+                      value: 'kalimat',
+                      child: Text('Kalimat sederhana'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _aspect = value ?? _aspect),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.space16),
+          TeacherPanel(
+            title: 'Tren ${aspectLabel(_aspect)}',
+            child: chartPoints.isEmpty
+                ? const EmptyState(
+                    message: 'Belum ada riwayat untuk ditampilkan pada grafik.',
+                  )
+                : MasteryHistoryChart(
+                    chartKey: const ValueKey('teacher-mastery-history-chart'),
+                    points: chartPoints,
+                  ),
+          ),
+          const SizedBox(height: AppTokens.space16),
+          TeacherPanel(
+            title: '$title · ${aspectLabel(_aspect)}',
+            child: latestByStudent.isEmpty
+                ? const EmptyState(
+                    message: 'Belum ada catatan penguasaan untuk pilihan ini.',
+                  )
+                : Column(
+                    children: [
+                      for (final record in latestByStudent.values)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            _studentId == null
+                                ? store.studentById(record.studentId)?.name ??
+                                      'Siswa'
+                                : _masteryStatus(record.status),
+                          ),
+                          subtitle: LinearProgressIndicator(
+                            value: record.score / 100,
+                            minHeight: 7,
+                          ),
+                          trailing: Text('${record.score}%'),
+                        ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: AppTokens.space16),
+          TeacherPanel(
+            title: 'Riwayat penguasaan',
+            child: records.isEmpty
+                ? const EmptyState(
+                    message: 'Belum ada riwayat penguasaan untuk pilihan ini.',
+                  )
+                : Column(
+                    children: [
+                      for (final record in records)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            '${store.studentById(record.studentId)?.name ?? 'Siswa'} · ${_masteryStatus(record.status)}',
+                          ),
+                          subtitle: Text(
+                            '${record.source == 'diagnostik' ? 'Diagnostik' : 'Latihan'} · Tingkat ${record.level} · ${_formatDate(record.recordedAt)}\n${record.reason}',
+                          ),
+                          trailing: Text('${record.score}%'),
+                        ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: AppTokens.space16),
+          const TeacherPanel(
+            child: Text(
+              'Grafik dan riwayat memakai catatan penguasaan aktual. Catatan lama tetap tersimpan saat hasil baru masuk.',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

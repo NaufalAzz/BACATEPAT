@@ -74,16 +74,12 @@ void main() {
       find.byKey(const ValueKey('student-progress-chart')),
       findsOneWidget,
     );
-    expect(find.text('Hasil tes diagnostik'), findsOneWidget);
+    expect(find.text('HASIL TES DIAGNOSTIK'), findsOneWidget);
     expect(find.textContaining('Suku kata: 100%'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('progress-aspect-huruf')));
     await tester.pump();
     expect(find.textContaining('Huruf: 100%'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Perkembangan Huruf'),
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
+    expect(find.text('PERKEMBANGAN HURUF'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('student-mastery-history-chart')),
       findsOneWidget,
@@ -94,12 +90,7 @@ void main() {
     );
     final studentChart = tester.widget<MasteryHistoryChart>(studentChartFinder);
     expect(studentChart.points.map((point) => point.score), [100, 0]);
-    final historyHeading = find.text('Riwayat penguasaan');
-    await tester.scrollUntilVisible(
-      historyHeading,
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
+    final historyHeading = find.text('RIWAYAT PENGUASAAN');
     expect(historyHeading, findsOneWidget);
     expect(find.textContaining('Tes diagnostik'), findsWidgets);
   });
@@ -112,12 +103,17 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: DashboardPage())),
     );
+    final recommendedTitle = teacher
+        .materialById(
+          student.activeRecommendationsForTeacher(1).first.materialId,
+        )!
+        .title;
     await tester.scrollUntilVisible(
-      find.textContaining('Mengenal huruf vokal'),
+      find.text(recommendedTitle),
       220,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.textContaining('Mengenal huruf vokal'), findsOneWidget);
+    expect(find.text(recommendedTitle), findsOneWidget);
     expect(find.text('Belum ada rekomendasi aktif.'), findsNothing);
 
     await tester.pumpWidget(
@@ -134,11 +130,11 @@ void main() {
     final teacherChart = tester.widget<MasteryHistoryChart>(teacherChartFinder);
     expect(teacherChart.points.map((point) => point.score), [0]);
     await tester.scrollUntilVisible(
-      find.text('Riwayat Suku kata'),
+      find.text('Riwayat penguasaan'),
       220,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Riwayat Suku kata'), findsOneWidget);
+    expect(find.text('Riwayat penguasaan'), findsOneWidget);
     expect(find.textContaining('Diagnostik'), findsOneWidget);
     expect(find.text('0%'), findsWidgets);
   });

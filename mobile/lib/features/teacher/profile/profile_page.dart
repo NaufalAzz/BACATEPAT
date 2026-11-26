@@ -4,7 +4,6 @@ import '../../../core/api/learning_session.dart';
 import '../../../core/api/bacatepat_api.dart';
 
 import '../../../app/app_session.dart';
-import '../../../core/components/baca_button.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../teacher_demo_store.dart';
 import '../teacher_widgets.dart';
@@ -39,155 +38,227 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(AppTokens.space16),
-    children: [
-      const TeacherPageHeading(
-        title: 'Profil Guru',
-        subtitle: 'Kelola informasi profil dan preferensi pratinjau.',
+  Widget build(BuildContext context) {
+    final store = TeacherDemoStore.instance;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space16,
+        AppTokens.space24,
       ),
-      TeacherPanel(
-        child: Form(
-          key: _formKey,
+      children: [
+        const TeacherPageHeading(
+          section: 'Profil',
+          title: 'Profil guru',
+          subtitle: 'Informasi akun dan pengaturan kelas.',
+        ),
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: const Color(0xFFFBE7B5),
+              child: Text(
+                store.teacherName
+                    .split(' ')
+                    .map((part) => part.characters.first)
+                    .take(2)
+                    .join()
+                    .toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppTokens.text,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppTokens.space14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    store.teacherName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTokens.text,
+                    ),
+                  ),
+                  const Text(
+                    'Guru Kelas · SD Pelita Bangsa',
+                    style: TextStyle(fontSize: 12, color: AppTokens.mutedText),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTokens.space16),
+        TeacherPanel(
+          padding: EdgeInsets.zero,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: AppTokens.sunshine,
-                child: Text(
-                  TeacherDemoStore.instance.teacherName
-                      .split(' ')
-                      .map((part) => part.characters.first)
-                      .take(2)
-                      .join()
-                      .toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF7B5C15),
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.space16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Informasi profil',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w500,
+                          color: AppTokens.text,
+                        ),
+                      ),
+                      const SizedBox(height: AppTokens.space12),
+                      TextFormField(
+                        key: const ValueKey('teacher-profile-name'),
+                        controller: _name,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama lengkap',
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().length < 2
+                            ? 'Nama minimal 2 karakter.'
+                            : null,
+                      ),
+                      const SizedBox(height: AppTokens.space12),
+                      TextFormField(
+                        key: const ValueKey('teacher-profile-email'),
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                        validator: (value) =>
+                            value == null ||
+                                !value.contains('@') ||
+                                !value.contains('.')
+                            ? 'Masukkan email yang valid.'
+                            : null,
+                      ),
+                      const SizedBox(height: AppTokens.space12),
+                      FilledButton(
+                        key: const ValueKey('save-teacher-profile'),
+                        onPressed: _save,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 40),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        child: const Text('Simpan perubahan'),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                TeacherDemoStore.instance.teacherName,
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
+              const Divider(height: 1, color: AppTokens.outline),
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.space16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Keamanan',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w500,
+                        color: AppTokens.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Perbarui kata sandi secara berkala.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: AppTokens.mutedText,
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.space12),
+                    OutlinedButton(
+                      onPressed: () => _changePassword(context),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                      child: const Text('Ganti kata sandi'),
+                    ),
+                    const SizedBox(height: AppTokens.space16),
+                    Text(
+                      'Hapus rekaman yang sudah dievaluasi setelah ${_retention.round()} hari.',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppTokens.mutedText,
+                      ),
+                    ),
+                    Slider(
+                      key: const ValueKey('audio-retention'),
+                      value: _retention,
+                      min: 90,
+                      max: 180,
+                      divisions: 3,
+                      label: '${_retention.round()} hari',
+                      onChanged: (value) => setState(() => _retention = value),
+                      onChangeEnd: (value) =>
+                          TeacherDemoStore.instance.updateProfile(
+                            name: _name.text,
+                            email: _email.text,
+                            retentionDays: value.round(),
+                          ),
+                    ),
+                  ],
+                ),
               ),
-              const Text(
-                'Guru Kelas',
-                style: TextStyle(color: AppTokens.mutedText, fontSize: 12),
-              ),
-              const SizedBox(height: AppTokens.space16),
-              TextFormField(
-                key: const ValueKey('teacher-profile-name'),
-                controller: _name,
-                decoration: const InputDecoration(labelText: 'Nama Guru'),
-                validator: (value) => value == null || value.trim().length < 2
-                    ? 'Nama minimal 2 karakter.'
-                    : null,
-              ),
-              const SizedBox(height: AppTokens.space16),
-              TextFormField(
-                key: const ValueKey('teacher-profile-email'),
-                controller: _email,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) =>
-                    value == null ||
-                        !value.contains('@') ||
-                        !value.contains('.')
-                    ? 'Masukkan email yang valid.'
-                    : null,
-              ),
-              const SizedBox(height: AppTokens.space16),
-              BacaButton(
-                key: const ValueKey('save-teacher-profile'),
-                label: 'Simpan profil',
-                icon: Icons.save_outlined,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppTokens.space8),
-              TextButton.icon(
-                onPressed: () => _changePassword(context),
-                icon: const Icon(Icons.lock_outline_rounded),
-                label: const Text('Ganti kata sandi'),
+              const Divider(height: 1, color: AppTokens.outline),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  key: const ValueKey('teacher-logout'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  leading: const Icon(
+                    Icons.logout_rounded,
+                    size: 20,
+                    color: AppTokens.primary,
+                  ),
+                  title: const Text(
+                    'Keluar dari akun',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () async {
+                    if (LearningSession.enabled) {
+                      try {
+                        await LearningSession.logout();
+                      } on ApiError catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text(e.message)));
+                        }
+                        return;
+                      }
+                      if (!context.mounted) return;
+                    } else {
+                      AppSession.end();
+                    }
+
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/welcome',
+                      (_) => false,
+                    );
+                  },
+                ),
               ),
             ],
           ),
         ),
-      ),
-      const SizedBox(height: AppTokens.space16),
-      TeacherPanel(
-        title: 'Retensi rekaman',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hapus rekaman yang sudah dievaluasi setelah ${_retention.round()} hari.',
-            ),
-            Slider(
-              key: const ValueKey('audio-retention'),
-              value: _retention,
-              min: 90,
-              max: 180,
-              divisions: 3,
-              label: '${_retention.round()} hari',
-              onChanged: (value) => setState(() => _retention = value),
-              onChangeEnd: (value) => TeacherDemoStore.instance.updateProfile(
-                name: _name.text,
-                email: _email.text,
-                retentionDays: value.round(),
-              ),
-            ),
-            const Text(
-              'Rentang 90–180 hari mengikuti kebijakan retensi pada BRD.',
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: AppTokens.space16),
-      const TeacherPanel(
-        title: 'Akun pratinjau',
-        child: Text(
-          'Profil dan pengaturan hanya tersimpan selama aplikasi berjalan. Tidak ada data yang dikirim ke server.',
-        ),
-      ),
-      const SizedBox(height: AppTokens.space16),
-      Card(
-        child: ListTile(
-          key: const ValueKey('teacher-logout'),
-          leading: const Icon(Icons.logout_rounded, color: AppTokens.primary),
-          title: const Text(
-            'Keluar dari akun',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          onTap: () async {
-            if (LearningSession.enabled) {
-              try {
-                await LearningSession.logout();
-              } on ApiError catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(e.message)));
-                }
-                return;
-              }
-              if (!context.mounted) return;
-            } else {
-              AppSession.end();
-            }
-
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/welcome',
-              (_) => false,
-            );
-          },
-        ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;

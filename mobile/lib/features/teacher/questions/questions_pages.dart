@@ -15,6 +15,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
   int? _level;
   String _aspect = 'Semua aspek';
   String _type = 'Semua tipe';
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +23,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     final questions = store.questions
         .where(
           (item) =>
+              item.prompt.toLowerCase().contains(_query) &&
               (_level == null || item.level == _level) &&
               (_aspect == 'Semua aspek' ||
                   aspectLabel(item.aspect) == _aspect) &&
@@ -32,30 +34,55 @@ class _QuestionsPageState extends State<QuestionsPage> {
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
         TeacherPageHeading(
-          title: 'Bank Soal',
+          section: 'Bank Soal',
+          title: 'Semua soal',
           subtitle:
-              '${store.questions.length} soal • Pilihan ganda dan baca lisan.',
+              '${store.questions.length} soal · Pilihan ganda dan baca lisan',
+          action: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                key: const ValueKey('open-question-generator'),
+                onPressed: () =>
+                    Navigator.pushNamed(context, '/guru/soal/generator'),
+                icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+                label: const Text('Buat dengan AI'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              FilledButton.icon(
+                key: const ValueKey('add-question'),
+                onPressed: () => _addQuestion(context),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Buat soal'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  textStyle: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        Wrap(
-          spacing: AppTokens.space12,
-          runSpacing: AppTokens.space12,
-          children: [
-            FilledButton.icon(
-              key: const ValueKey('add-question'),
-              onPressed: () => _addQuestion(context),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Tambah soal'),
-            ),
-            OutlinedButton.icon(
-              key: const ValueKey('open-question-generator'),
-              onPressed: () =>
-                  Navigator.pushNamed(context, '/guru/soal/generator'),
-              icon: const Icon(Icons.auto_awesome_outlined),
-              label: const Text('Generator soal AI'),
-            ),
-          ],
+        const SizedBox(height: AppTokens.space8),
+        TextField(
+          decoration: const InputDecoration(
+            hintText: 'Cari soal...',
+            prefixIcon: Icon(Icons.search_rounded),
+          ),
+          onChanged: (value) => setState(() => _query = value.toLowerCase()),
         ),
-        const SizedBox(height: AppTokens.space16),
+        const SizedBox(height: AppTokens.space12),
         Wrap(
           spacing: AppTokens.space12,
           runSpacing: AppTokens.space12,
@@ -81,138 +108,79 @@ class _QuestionsPageState extends State<QuestionsPage> {
             ], (value) => setState(() => _type = value)),
           ],
         ),
-        const SizedBox(height: AppTokens.space16),
+        const SizedBox(height: AppTokens.space12),
         if (questions.isEmpty)
           const TeacherPanel(
             child: EmptyState(
               message: 'Belum ada soal yang cocok dengan filter ini.',
             ),
-          ),
-        for (final item in questions)
-          TeacherPanel(
-            key: ValueKey('question-${item.id}'),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: AppTokens.surface,
+              border: Border.all(color: AppTokens.outline),
+              borderRadius: BorderRadius.circular(AppTokens.radiusXLarge),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.prompt,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    StatusBadge(
-                      label: item.status,
-                      good: item.status == 'disetujui',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTokens.space8),
-                Text(
-                  '${aspectLabel(item.aspect)} • tingkat ${item.level} • ${item.type}',
-                ),
-                if (item.type == 'Pilihan ganda' &&
-                    item.choices.isNotEmpty) ...[
-                  const SizedBox(height: AppTokens.space8),
-                  Text(
-                    'Pilihan: ${item.choices.join(' • ')}${item.correctAnswer == null ? '' : '  |  Kunci: ${item.correctAnswer}'}',
+                const _QuestionTableHeader(),
+                for (final item in questions) ...[
+                  _QuestionRow(
+                    item: item,
+                    onEdit: () => _editQuestion(context, item),
+                    onAction: (action) =>
+                        _handleQuestionAction(context, store, item, action),
                   ),
+                  if (item.id != questions.last.id)
+                    const Divider(height: 1, color: AppTokens.outline),
                 ],
-                const SizedBox(height: AppTokens.space8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.play_circle_outline_rounded,
-                      color: AppTokens.primary,
-                    ),
-                    const SizedBox(width: AppTokens.space8),
-                    Expanded(
-                      child: Text(
-                        item.type == 'Baca lisan'
-                            ? 'Teks target ditampilkan saat soal dibuka.'
-                            : 'Pilihan jawaban tersedia untuk ditinjau.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      tooltip: 'Aksi soal',
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _editQuestion(context, item);
-                        } else if (value == 'delete') {
-                          final deleted = store.deleteQuestion(item.id);
-                          if (!deleted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Soal sudah digunakan tes dan tidak dapat dihapus.',
-                                ),
-                              ),
-                            );
-                          }
-                        } else {
-                          final changed = store.setQuestionStatus(
-                            item.id,
-                            value,
-                          );
-                          if (!changed && value == 'disetujui') {
-                            final issues = item
-                                .validationIssues(materials: store.materials)
-                                .join(' ');
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(content: Text(issues)));
-                          } else if (changed &&
-                              store.questionIsReferenced(item.id) &&
-                              value != item.status) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Versi yang dipakai tes tetap utuh; status perubahan dibuat sebagai versi baru.',
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit soal'),
-                        ),
-                        if (item.status != 'disetujui')
-                          PopupMenuItem(
-                            value: 'disetujui',
-                            child: Text('Setujui draf'),
-                          ),
-                        if (item.status == 'disetujui')
-                          const PopupMenuItem(
-                            value: 'nonaktif',
-                            child: Text('Nonaktifkan'),
-                          ),
-                        if (item.status == 'nonaktif')
-                          const PopupMenuItem(
-                            value: 'draf',
-                            child: Text('Kembalikan ke draf'),
-                          ),
-                        const PopupMenuItem(
-                          value: 'ditolak',
-                          child: Text('Tolak soal'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Hapus soal'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
       ],
     );
+  }
+
+  void _handleQuestionAction(
+    BuildContext context,
+    TeacherDemoStore store,
+    DemoQuestion item,
+    String action,
+  ) {
+    if (action == 'edit') {
+      _editQuestion(context, item);
+      return;
+    }
+    if (action == 'delete') {
+      if (!store.deleteQuestion(item.id)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Soal sudah digunakan tes dan tidak dapat dihapus.'),
+          ),
+        );
+      }
+      return;
+    }
+    final changed = store.setQuestionStatus(item.id, action);
+    if (!changed && action == 'disetujui') {
+      final issues = item
+          .validationIssues(materials: store.materials)
+          .join(' ');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(issues)));
+    } else if (changed &&
+        store.questionIsReferenced(item.id) &&
+        action != item.status) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Versi yang dipakai tes tetap utuh; status perubahan dibuat sebagai versi baru.',
+          ),
+        ),
+      );
+    }
   }
 
   Widget _filter<T>(
@@ -548,6 +516,117 @@ class _QuestionEditorDialogState extends State<_QuestionEditorDialog> {
     }
   }
 }
+
+class _QuestionTableHeader extends StatelessWidget {
+  const _QuestionTableHeader();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: const Color(0xFFF2F6F5),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    child: const Row(
+      children: [
+        Expanded(flex: 5, child: Text('SOAL', style: _questionHeaderStyle)),
+        Expanded(flex: 2, child: Text('ASPEK', style: _questionHeaderStyle)),
+        Expanded(flex: 2, child: Text('TINGKAT', style: _questionHeaderStyle)),
+        SizedBox(width: 48),
+      ],
+    ),
+  );
+}
+
+class _QuestionRow extends StatelessWidget {
+  const _QuestionRow({
+    required this.item,
+    required this.onEdit,
+    required this.onAction,
+  });
+
+  final DemoQuestion item;
+  final VoidCallback onEdit;
+  final ValueChanged<String> onAction;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onEdit,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.prompt,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTokens.text,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${item.type} · ${item.status}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              aspectLabel(item.aspect),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'Tingkat ${item.level}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Aksi soal',
+            onSelected: onAction,
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'edit', child: Text('Edit soal')),
+              if (item.status != 'disetujui')
+                const PopupMenuItem(
+                  value: 'disetujui',
+                  child: Text('Setujui draf'),
+                ),
+              if (item.status == 'disetujui')
+                const PopupMenuItem(
+                  value: 'nonaktif',
+                  child: Text('Nonaktifkan'),
+                ),
+              if (item.status == 'nonaktif')
+                const PopupMenuItem(
+                  value: 'draf',
+                  child: Text('Kembalikan ke draf'),
+                ),
+              const PopupMenuItem(value: 'ditolak', child: Text('Tolak soal')),
+              const PopupMenuItem(value: 'delete', child: Text('Hapus soal')),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+const _questionHeaderStyle = TextStyle(
+  color: AppTokens.mutedText,
+  fontSize: 9,
+  fontWeight: FontWeight.w800,
+);
 
 class QuestionGeneratorPage extends StatefulWidget {
   const QuestionGeneratorPage({super.key});

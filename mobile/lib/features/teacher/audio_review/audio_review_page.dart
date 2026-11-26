@@ -72,7 +72,8 @@ class _AudioReviewPageState extends State<AudioReviewPage> {
       padding: const EdgeInsets.all(AppTokens.space16),
       children: [
         const TeacherPageHeading(
-          title: 'Evaluasi Rekaman',
+          section: 'Evaluasi Rekaman',
+          title: 'Antrean rekaman',
           subtitle:
               'Dengarkan bacaan, lalu tetapkan penilaian akhir sebagai Guru.',
         ),
@@ -225,13 +226,13 @@ class _AudioReviewPageState extends State<AudioReviewPage> {
                 children: [
                   StatusBadge(
                     label: 'Persetujuan wali tercatat',
-                    good: recording.parentConsent,
+                    variant: recording.parentConsent ? StatusVariant.success : StatusVariant.warning,
                   ),
                   StatusBadge(
                     label: student.aiConsent
                         ? 'Persetujuan AI: ya'
                         : 'Persetujuan AI: tidak',
-                    good: student.aiConsent,
+                    variant: student.aiConsent ? StatusVariant.success : StatusVariant.neutral,
                   ),
                 ],
               ),
@@ -301,7 +302,7 @@ class _AudioReviewPageState extends State<AudioReviewPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StatusBadge(label: 'Indikasi • bukan nilai resmi', good: false),
+          StatusBadge(label: 'Indikasi • bukan nilai resmi', variant: StatusVariant.info),
           const SizedBox(height: AppTokens.space12),
           Text('Kemiripan simulasi: ${recording.simulatedAiSimilarity}%'),
           const SizedBox(height: AppTokens.space8),

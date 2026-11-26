@@ -30,7 +30,22 @@ class TeacherShell extends StatelessWidget {
       appBar: _appBar(context),
       body: SafeArea(
         top: false,
-        child: TeacherPageBody(screen: screen, arguments: arguments),
+        child: Column(
+          children: [
+            if (screen.placement == NavigationPlacement.detail)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.maybePop(context),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: Text('Kembali ke ${_parentTitle(screen.parentId)}'),
+                ),
+              ),
+            Expanded(
+              child: TeacherPageBody(screen: screen, arguments: arguments),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: _TeacherBottomNavigation(
         selected: screen,
@@ -40,13 +55,6 @@ class TeacherShell extends StatelessWidget {
   );
 
   PreferredSizeWidget _appBar(BuildContext context) => AppBar(
-    leading: screen.placement == NavigationPlacement.detail
-        ? IconButton(
-            tooltip: 'Kembali',
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back_rounded),
-          )
-        : null,
     title: Row(
       children: [
         const BacaTepatMark(size: 28),
@@ -218,6 +226,14 @@ class TeacherShell extends StatelessWidget {
       ),
     );
   }
+}
+
+String _parentTitle(String? parentId) {
+  if (parentId == null) return 'sebelumnya';
+  return NavigationPlan.teacher
+      .firstWhere((item) => item.id == parentId)
+      .title
+      .toLowerCase();
 }
 
 class _TeacherBottomNavigation extends StatelessWidget {

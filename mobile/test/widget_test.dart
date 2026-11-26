@@ -156,7 +156,7 @@ void main() {
     expect(AppSession.role, AppRole.teacher);
     expect(AppSession.userId, 1);
     expect(AppSession.teacherId, 1);
-    expect(find.text('Ringkasan kelas'), findsOneWidget);
+    expect(find.textContaining('Ringkasan Kelas'), findsOneWidget);
   });
 
   testWidgets('student login opens the student home and bottom navigation', (
@@ -220,7 +220,7 @@ void main() {
   });
 
   test('navigation inventory and main theme contrast are preserved', () {
-    expect(NavigationPlan.teacher, hasLength(17));
+    expect(NavigationPlan.teacher, hasLength(19));
     expect(NavigationPlan.student, hasLength(10));
     expect(
       _contrastRatio(AppTokens.text, AppTokens.background),
@@ -251,7 +251,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('material-start-exercise')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Soal 1 dari 1'), findsOneWidget);
+    expect(find.text('1 dari 1'), findsOneWidget);
     expect(find.text(question.prompt), findsOneWidget);
     expect(find.text(question.picture), findsOneWidget);
     await tester.tap(

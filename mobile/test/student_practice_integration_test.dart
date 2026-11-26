@@ -127,7 +127,7 @@ void main() {
     final displayedFirst = firstPrompt.evaluate().isNotEmpty
         ? first
         : teacherStore.questionById(secondId)!;
-    expect(find.text('Soal 1 dari 2'), findsOneWidget);
+    expect(find.text('1 dari 2'), findsOneWidget);
     await tester.tap(
       find.byKey(
         ValueKey('exercise-answer-${displayedFirst.correctAnswerIndex}'),
@@ -137,7 +137,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('exercise-next')));
     await tester.pump();
 
-    expect(find.text('Soal 2 dari 2'), findsOneWidget);
+    expect(find.text('2 dari 2'), findsOneWidget);
     expect(
       firstPrompt.evaluate().isNotEmpty || secondPrompt.evaluate().isNotEmpty,
       isTrue,
